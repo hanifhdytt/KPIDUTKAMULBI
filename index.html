@@ -95,6 +95,7 @@ function loginView() {
   <label for="pin">PIN</label><div class="pw"><input id="pin" type="password" autocomplete="current-password" required><button type="button" id="eye" aria-pressed="false" aria-label="Tampilkan PIN">Lihat</button></div>
   <label class="sel" style="font-weight:500;margin:2px 0 16px"><input type="checkbox" id="rem"> Ingat saya di perangkat ini</label>
   <button class="btn gold" style="width:100%">Masuk</button></form></div></div>`;
+  try { const R = JSON.parse(localStorage.getItem('rem') || 'null'); if (R) { $('#nim').value = R.nim; $('#pin').value = R.pin; $('#rem').checked = true; } } catch (e) {}
   $('#eye').onclick = () => {
     const show = $('#pin').type === 'password'; $('#pin').type = show ? 'text' : 'password';
     $('#eye').textContent = show ? 'Sembunyi' : 'Lihat'; $('#eye').setAttribute('aria-pressed', show); $('#eye').setAttribute('aria-label', show ? 'Sembunyikan PIN' : 'Tampilkan PIN');
@@ -104,6 +105,7 @@ function loginView() {
     let r; try { r = await api('login'); } catch (err) { U = null; throw err; }
     U = { ...U, ...r };
     localStorage.removeItem('u'); sessionStorage.removeItem('u');
+    if ($('#rem').checked) localStorage.setItem('rem', JSON.stringify({ nim: U.nim, pin: U.pin })); else localStorage.removeItem('rem');
     // dicentang: tetap masuk walau browser ditutup; tidak dicentang: berakhir saat tab/browser ditutup
     ($('#rem').checked ? localStorage : sessionStorage).setItem('u', JSON.stringify(U)); start();
   });
@@ -264,7 +266,7 @@ function memberForm(m) {
     e.preventDefault();
     const pin = $('#mp').value.trim(), nim = $('#mn').value.trim();
     await api('memberSave', { isNew, target: nim, nama: $('#mm').value, newPin: pin, divisi: $('#mv').value, role: $('#mr').value });
-    if (!isNew && nim === U.nim && pin) { U.pin = pin; (localStorage.getItem('u') ? localStorage : sessionStorage).setItem('u', JSON.stringify(U)); }
+    if (!isNew && nim === U.nim && pin) { U.pin = pin; if (localStorage.getItem('rem')) localStorage.setItem('rem', JSON.stringify({ nim: U.nim, pin })); (localStorage.getItem('u') ? localStorage : sessionStorage).setItem('u', JSON.stringify(U)); }
     toast('Anggota disimpan'); mo.remove(); anggota();
   });
 }
