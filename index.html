@@ -74,7 +74,7 @@ const YEAR = String(new Date().getFullYear()), NOW = new Date().toISOString().sl
 const LOGO = 'https://drive.google.com/thumbnail?id=' + LOGO_ID + '&sz=w400';
 const IMG = c => `<img class="${c}" src="${LOGO}" alt="Logo Duta Kampus ULBI" referrerpolicy="no-referrer" onerror="this.remove()">`;
 { const l = document.createElement('link'); l.rel = 'icon'; l.href = LOGO; document.head.append(l); }
-const pending = new URLSearchParams(location.search).get('c'); // dari QR via kamera bawaan HP
+let pending = new URLSearchParams(location.search).get('c'); // dari QR via kamera bawaan HP
 
 async function api(action, d = {}) {
   const r = await fetch(API, { method: 'POST', body: JSON.stringify({ action, ...d, nim: U && U.nim, pin: U && U.pin }) });
@@ -100,27 +100,35 @@ function loginView() {
     const show = $('#pin').type === 'password'; $('#pin').type = show ? 'text' : 'password';
     $('#eye').textContent = show ? 'Sembunyi' : 'Lihat'; $('#eye').setAttribute('aria-pressed', show); $('#eye').setAttribute('aria-label', show ? 'Sembunyikan PIN' : 'Tampilkan PIN');
   };
-  $('#f').onsubmit = guard(async e => {
-    e.preventDefault(); U = { nim: $('#nim').value.trim(), pin: $('#pin').value };
-    let r; try { r = await api('login'); } catch (err) { U = null; throw err; }
-    U = { ...U, ...r };
-    localStorage.removeItem('u'); sessionStorage.removeItem('u');
-    if ($('#rem').checked) localStorage.setItem('rem', JSON.stringify({ nim: U.nim, pin: U.pin })); else localStorage.removeItem('rem');
-    // dicentang: tetap masuk walau browser ditutup; tidak dicentang: berakhir saat tab/browser ditutup
-    ($('#rem').checked ? localStorage : sessionStorage).setItem('u', JSON.stringify(U)); start();
-  });
+  let busy = false;
+  $('#f').onsubmit = async e => {
+    e.preventDefault(); if (busy) return; // cegah klik ganda: proses login pertama masih berjalan
+    busy = true;
+    const btn = $('#f button.gold'), remember = $('#rem').checked, nim = $('#nim').value.trim(), pin = $('#pin').value;
+    btn.disabled = true; btn.textContent = 'Memproses…';
+    try {
+      U = { nim, pin };
+      const r = await api('login'); U = { ...U, ...r };
+      localStorage.removeItem('u'); sessionStorage.removeItem('u');
+      if (remember) localStorage.setItem('rem', JSON.stringify({ nim, pin })); else localStorage.removeItem('rem');
+      // dicentang: tetap masuk walau browser ditutup; tidak dicentang: berakhir saat tab/browser ditutup
+      (remember ? localStorage : sessionStorage).setItem('u', JSON.stringify(U)); start();
+    } catch (err) {
+      U = null; toast(err.message, 1); btn.disabled = false; btn.textContent = 'Masuk'; busy = false;
+    }
+  };
 }
 function logout() { localStorage.removeItem('u'); sessionStorage.removeItem('u'); U = null; loginView(); }
 
 /* ---------- shell ---------- */
-const TABS = { member: [['home', 'Beranda'], ['scan', 'Scan QR']], admin: [['dash', 'Dashboard'], ['events', 'Acara'], ['nilai', 'Nilai'], ['anggota', 'Anggota']] };
+const TABS = { member: [['home', 'Beranda'], ['scan', 'Scan QR']], admin: [['dash', 'Dashboard'], ['events', 'Acara'], ['nilai', 'Nilai'], ['anggota', 'Anggota'], ['scan', 'Scan']] };
 function start() {
   if (!U) return loginView();
   const tabs = TABS[U.role === 'admin' ? 'admin' : 'member'];
   app.innerHTML = `<nav>${IMG('logo')}${tabs.map(t => `<button data-t="${t[0]}">${t[1]}</button>`).join('')}<button id="out">Keluar</button></nav><main class="wrap" id="main"></main>`;
   document.querySelectorAll('nav [data-t]').forEach(b => b.onclick = () => go(b.dataset.t));
   $('#out').onclick = logout;
-  if (pending) { history.replaceState(null, '', location.pathname); submitScan(pending); }
+  if (pending) { const c = pending; pending = null; history.replaceState(null, '', location.pathname); submitScan(c); }
   go(tabs[0][0]);
 }
 function go(t) {
@@ -169,22 +177,31 @@ const submitScan = guard(async c => {
 /* ---------- admin: dashboard ---------- */
 async function dash() {
   const d = await api('dashboard', { year: YEAR }), keys = Object.keys(d.stats);
-  if (!keys.length) { $('#main').innerHTML = '<div class="card"><h3>Belum ada data</h3><p class="muted">Buat acara dan input nilai dulu.</p></div>'; return; }
+  if (!keys.length) { $('#main').innerHTML = '<div class="card"><h3>Belum ada data</h3><p class="muted" style="margin:6px 0 12px">Buat acara dan input nilai dulu. Kalau data sudah ada di Sheet tapi tidak tampil, cek apa yang terbaca sistem.</p><button class="btn ghost sm" onclick="guard(diagnosa)()">Cek data</button></div>'; return; }
   const cur = keys.includes(NOW) ? NOW : keys[keys.length - 1], names = d.yearly.map(y => y.nama);
   $('#main').innerHTML = `<div class="hero"><h1>Kinerja Duta ${YEAR}</h1><p>${d.moy ? 'Member of the Year sementara: ' + d.moy.nama : 'MOY ditentukan dari rata-rata skor bulanan'}</p></div>
   <div class="card row"><div><label>Bulan</label><select id="mo">${keys.map(k => `<option value="${k}" ${k === cur ? 'selected' : ''}>${bln(k)}</option>`).join('')}</select></div>
   <div id="momb"></div></div>
   <div class="grid"><div class="card"><h3>Peringkat bulan ini</h3><canvas id="c2"></canvas></div>
   <div class="card"><h3>Tren per anggota</h3><select id="mb">${names.map(n => `<option>${n}</option>`).join('')}</select><canvas id="c3"></canvas></div></div>
-  <div class="card scroll"><table id="tb"></table></div>`;
+  <div class="card scroll"><table id="tb"></table></div>
+  <button class="btn ghost sm" onclick="guard(diagnosa)()">Cek data yang terbaca sistem</button>`;
   const draw = () => {
     const k = $('#mo').value, L = d.stats[k];
     $('#momb').innerHTML = d.mom[k] ? `<span class="badge">Member of the Month</span> <b>${d.mom[k]}</b>` : '';
-    chart('c2', { type: 'bar', data: { labels: L.map(r => r.nama), datasets: [{ data: L.map(r => r.total), backgroundColor: L.map((r, i) => i ? '#3c4f73' : '#ffb400'), borderRadius: 8 }] }, options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { min: 0, max: 100 } } } });
     $('#tb').innerHTML = '<tr><th>#</th><th>Nama</th><th>Hadir</th><th>Aktif</th><th>Eksekusi</th><th>Skor</th></tr>' + L.map((r, i) => `<tr><td>${i + 1}</td><td>${r.nama}</td><td>${r.hadir}/${r.acara}</td><td>${r.aktif}</td><td>${r.eksekusi}</td><td><b>${r.total}</b></td></tr>`).join('');
+    try { chart('c2', { type: 'bar', data: { labels: L.map(r => r.nama), datasets: [{ data: L.map(r => r.total), backgroundColor: L.map((r, i) => i ? '#3c4f73' : '#ffb400'), borderRadius: 8 }] }, options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { min: 0, max: 100 } } } }); } catch (e) { toast('Grafik gagal dimuat: ' + e.message, 1); }
   };
-  const trend = () => { const n = $('#mb').value; chart('c3', { type: 'line', data: { labels: keys.map(bln), datasets: [{ label: n, data: keys.map(k => (d.stats[k].find(r => r.nama === n) || {}).total), borderColor: '#0e9f8e', tension: .35 }] }, options: { scales: { y: { min: 0, max: 100 } } } }); };
+  const trend = () => { const n = $('#mb').value; try { chart('c3', { type: 'line', data: { labels: keys.map(bln), datasets: [{ label: n, data: keys.map(k => (d.stats[k].find(r => r.nama === n) || {}).total), borderColor: '#0e9f8e', tension: .35 }] }, options: { scales: { y: { min: 0, max: 100 } } } }); } catch (e) {} };
   $('#mo').onchange = draw; $('#mb').onchange = trend; draw(); trend();
+}
+
+async function diagnosa() {
+  const d = await api('diagnosa');
+  modal(`<h3>Data yang terbaca sistem</h3><div style="text-align:left;margin-top:12px;max-height:60vh;overflow:auto" class="muted">
+  <p>Zona waktu Sheet: <b>${esc(d.tz)}</b><br>Anggota: <b>${d.anggota}</b> · Absensi: <b>${d.absensi}</b> · Acara: <b>${d.acara.length}</b> · Baris nilai: <b>${d.nilai.length}</b></p>
+  <p style="margin-top:10px"><b>Nilai</b></p>${d.nilai.map(n => `<div class="item">Bulan terbaca <b>${esc(n.bulan)}</b> (isi sel: ${esc(n.asli)})<br>NIM ${esc(n.nim)} — ${n.cocok ? 'cocok dengan anggota' : '<b style="color:var(--red)">tidak ada di sheet Members</b>'}</div>`).join('') || '<p>Belum ada baris nilai.</p>'}
+  <p style="margin-top:10px"><b>Acara</b></p>${d.acara.map(a => `<div class="item">${esc(a.nama)} — ${esc(a.bulan)} · ${esc(a.status)}</div>`).join('') || '<p>Belum ada acara.</p>'}</div>`);
 }
 
 /* ---------- admin: acara + QR ---------- */
@@ -192,7 +209,7 @@ async function events() {
   const ev = (await api('events')).reverse();
   $('#main').innerHTML = `<div class="card"><h3>Buat acara</h3><form id="nf"><label>Nama acara</label><input id="en" required>
   <label>Tanggal</label><input id="et" type="date" required><button class="btn gold">Simpan acara</button></form></div>
-  <div class="card"><h3>Daftar acara</h3>${ev.map(e => `<div class="item"><div class="row"><div><b>${e.nama}</b><br><span class="muted">${e.tanggal}</span> <span class="badge ${e.status}">${{ draft: 'Draft', open: 'Absensi dibuka', closed: 'Ditutup' }[e.status]}</span></div>
+  <div class="card"><h3>Daftar acara</h3>${ev.map(e => `<div class="item"><div class="row"><div><b>${e.nama}</b><br><span class="muted">${e.tanggal} · ${e.hadir} hadir</span> <span class="badge ${e.status}">${{ draft: 'Draft', open: 'Absensi dibuka', closed: 'Ditutup' }[e.status]}</span></div>
   <div class="row"><button class="btn sm" data-q="${e.id}">QR</button><button class="btn sm ghost" data-m="${e.id}">Manual</button>
   <button class="btn sm ghost" data-s="${e.id}" data-v="${e.status === 'open' ? 'closed' : 'open'}">${e.status === 'open' ? 'Tutup' : 'Buka'} absensi</button></div></div></div>`).join('') || '<p class="muted">Belum ada acara.</p>'}</div>`;
   $('#nf').onsubmit = guard(async e => { e.preventDefault(); await api('createEvent', { nama: $('#en').value, tanggal: $('#et').value }); toast('Acara disimpan'); events(); });
@@ -216,10 +233,25 @@ async function manual(id) {
 async function nilai() {
   const mem = await api('members');
   $('#main').innerHTML = `<div class="card"><h3>Input penilaian bulanan</h3><p class="muted" style="margin-bottom:10px">Kehadiran dihitung otomatis dari absensi. Isi keaktifan dan eksekusi (0–100).</p><form id="sf">
-  <label>Bulan</label><input id="sb" type="month" value="${NOW}" required><label>Anggota</label><select id="sn">${mem.map(x => `<option value="${x.nim}">${x.nama}</option>`).join('')}</select>
+  <label>Bulan</label><input id="sb" type="month" value="${NOW}" required><label>Anggota</label><select id="sn">${mem.map(x => `<option value="${esc(x.nim)}">${esc(x.nama)}</option>`).join('')}</select>
   <label>Keaktifan</label><input id="sk" type="number" min="0" max="100" required><label>Eksekusi tugas</label><input id="se" type="number" min="0" max="100" required>
-  <label>Catatan</label><input id="sc"><button class="btn gold" style="width:100%">Simpan nilai</button></form></div>`;
-  $('#sf').onsubmit = guard(async e => { e.preventDefault(); await api('score', { bulan: $('#sb').value, target: $('#sn').value, keaktifan: $('#sk').value, eksekusi: $('#se').value, catatan: $('#sc').value }); toast('Nilai disimpan'); $('#sk').value = $('#se').value = $('#sc').value = ''; });
+  <label>Catatan</label><input id="sc"><button class="btn gold" style="width:100%">Simpan nilai</button></form></div>
+  <div class="card"><h3>Nilai tersimpan bulan ini</h3><div id="sv" class="scroll"></div></div>`;
+  let saved = [];
+  const fill = () => { const r = saved.find(x => x.nim === $('#sn').value); $('#sk').value = r ? r.keaktifan : ''; $('#se').value = r ? r.eksekusi : ''; $('#sc').value = r ? r.catatan : ''; };
+  const load = guard(async () => {
+    saved = await api('scores', { bulan: $('#sb').value });
+    $('#sv').innerHTML = '<table><tr><th>Nama</th><th>Aktif</th><th>Eksekusi</th></tr>' + mem.map(m => { const r = saved.find(x => x.nim === m.nim);
+      return `<tr><td>${esc(m.nama)}</td>${r ? `<td>${r.keaktifan}</td><td>${r.eksekusi}</td>` : '<td colspan="2" class="muted">Belum dinilai</td>'}</tr>`; }).join('') + '</table>';
+    fill();
+  });
+  $('#sb').onchange = load; $('#sn').onchange = fill;
+  $('#sf').onsubmit = guard(async e => {
+    e.preventDefault();
+    await api('score', { bulan: $('#sb').value, target: $('#sn').value, keaktifan: $('#sk').value, eksekusi: $('#se').value, catatan: $('#sc').value });
+    toast('Nilai tersimpan'); await load();
+  });
+  load();
 }
 
 /* ---------- admin: kelola anggota ---------- */
@@ -231,6 +263,7 @@ async function anggota() {
   <div id="ml"></div></div>`;
   const vis = () => { const q = $('#q').value.toLowerCase(); return list.filter(m => (m.nama + m.nim).toLowerCase().includes(q)); };
   const sync = () => {
+    if (!$('#all') || !$('#del')) return; // pengguna sudah pindah halaman
     const v = vis().filter(m => m.nim !== U.nim);
     $('#del').disabled = !sel.size; $('#del').textContent = 'Hapus terpilih' + (sel.size ? ' (' + sel.size + ')' : '');
     $('#all').checked = v.length > 0 && v.every(m => sel.has(m.nim));
