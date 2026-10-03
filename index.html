@@ -74,6 +74,7 @@ async function api(action, d = {}) {
   const r = await fetch(API, { method: 'POST', body: JSON.stringify({ action, ...d, nim: U && U.nim, pin: U && U.pin }) });
   const j = await r.json(); if (!j.ok) throw new Error(j.error); return j.data;
 }
+const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function toast(m, err) { const t = document.createElement('div'); t.className = 'toast' + (err ? ' err' : ''); t.textContent = m; document.body.append(t); setTimeout(() => t.remove(), 3200); }
 const guard = fn => async (...a) => { try { await fn(...a) } catch (e) { toast(e.message, 1) } };
 function chart(id, cfg) { if (CH[id]) CH[id].destroy(); CH[id] = new Chart($('#' + id), cfg); }
@@ -95,7 +96,7 @@ function loginView() {
 function logout() { localStorage.removeItem('u'); U = null; loginView(); }
 
 /* ---------- shell ---------- */
-const TABS = { member: [['home', 'Beranda'], ['scan', 'Scan QR']], admin: [['dash', 'Dashboard'], ['events', 'Acara'], ['nilai', 'Nilai']] };
+const TABS = { member: [['home', 'Beranda'], ['scan', 'Scan QR']], admin: [['dash', 'Dashboard'], ['events', 'Acara'], ['nilai', 'Nilai'], ['anggota', 'Anggota']] };
 function start() {
   if (!U) return loginView();
   const tabs = TABS[U.role === 'admin' ? 'admin' : 'member'];
@@ -109,7 +110,7 @@ function go(t) {
   stopScan();
   document.querySelectorAll('nav [data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === t));
   $('#main').innerHTML = '<p class="muted">Memuat…</p>';
-  guard({ home, scan, dash, events, nilai }[t])();
+  guard({ home, scan, dash, events, nilai, anggota }[t])();
 }
 
 /* ---------- anggota: beranda ---------- */
@@ -202,6 +203,43 @@ async function nilai() {
   <label>Keaktifan</label><input id="sk" type="number" min="0" max="100" required><label>Eksekusi tugas</label><input id="se" type="number" min="0" max="100" required>
   <label>Catatan</label><input id="sc"><button class="btn gold" style="width:100%">Simpan nilai</button></form></div>`;
   $('#sf').onsubmit = guard(async e => { e.preventDefault(); await api('score', { bulan: $('#sb').value, target: $('#sn').value, keaktifan: $('#sk').value, eksekusi: $('#se').value, catatan: $('#sc').value }); toast('Nilai disimpan'); $('#sk').value = $('#se').value = $('#sc').value = ''; });
+}
+
+/* ---------- admin: kelola anggota ---------- */
+async function anggota() {
+  const list = await api('memberList');
+  $('#main').innerHTML = `<div class="card"><div class="row"><h3>Kelola anggota (${list.length})</h3><button class="btn gold sm" id="add">+ Tambah anggota</button></div>
+  <input id="q" placeholder="Cari nama atau NIM" style="margin-top:12px"><div id="ml"></div></div>`;
+  const draw = () => {
+    const q = $('#q').value.toLowerCase();
+    $('#ml').innerHTML = list.filter(m => (m.nama + m.nim).toLowerCase().includes(q)).map(m => `<div class="item"><div class="row"><div><b>${esc(m.nama)}</b> ${m.role === 'admin' ? '<span class="badge">Admin</span>' : ''}<br><span class="muted">${esc(m.nim)} · ${esc(m.divisi || 'Tanpa divisi')}</span></div>
+    <div class="row"><button class="btn sm ghost" data-e="${esc(m.nim)}">Edit</button><button class="btn sm ghost" data-d="${esc(m.nim)}">Hapus</button></div></div></div>`).join('') || '<p class="muted" style="margin-top:10px">Tidak ada anggota yang cocok.</p>';
+    document.querySelectorAll('[data-e]').forEach(b => b.onclick = () => memberForm(list.find(m => m.nim === b.dataset.e)));
+    document.querySelectorAll('[data-d]').forEach(b => b.onclick = guard(async () => {
+      const m = list.find(x => x.nim === b.dataset.d);
+      if (!confirm('Hapus ' + m.nama + '? Data absensi dan nilai lama tetap tersimpan di Sheet.')) return;
+      await api('memberDelete', { target: m.nim }); toast('Anggota dihapus'); anggota();
+    }));
+  };
+  $('#q').oninput = draw; $('#add').onclick = () => memberForm(null); draw();
+}
+function memberForm(m) {
+  const isNew = !m;
+  const mo = modal(`<h3>${isNew ? 'Tambah' : 'Edit'} anggota</h3><form id="mf" style="text-align:left;margin-top:12px">
+  <label>NIM</label><input id="mn" inputmode="numeric" value="${isNew ? '' : esc(m.nim)}" ${isNew ? '' : 'readonly'} required>
+  <label>Nama</label><input id="mm" value="${isNew ? '' : esc(m.nama)}" required>
+  <label>PIN</label><input id="mp" placeholder="${isNew ? 'Minimal 4 karakter' : 'Kosongkan jika tidak diubah'}" ${isNew ? 'required' : ''}>
+  <label>Divisi</label><input id="mv" value="${isNew ? '' : esc(m.divisi || '')}">
+  <label>Peran</label><select id="mr"><option value="member">Anggota</option><option value="admin">Admin</option></select>
+  <button class="btn gold" style="width:100%">Simpan anggota</button></form>`);
+  $('#mr').value = isNew ? 'member' : m.role;
+  $('#mf').onsubmit = guard(async e => {
+    e.preventDefault();
+    const pin = $('#mp').value.trim(), nim = $('#mn').value.trim();
+    await api('memberSave', { isNew, target: nim, nama: $('#mm').value, newPin: pin, divisi: $('#mv').value, role: $('#mr').value });
+    if (!isNew && nim === U.nim && pin) { U.pin = pin; localStorage.setItem('u', JSON.stringify(U)); }
+    toast('Anggota disimpan'); mo.remove(); anggota();
+  });
 }
 
 start();
