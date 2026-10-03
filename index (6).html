@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>KPI Duta Kampus ULBI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Plus+Jakarta+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+:root{--ink:#0f2347;--ink2:#3c4f73;--bg:#eef2f8;--card:#fff;--gold:#ffb400;--teal:#0e9f8e;--red:#d64545;--line:#d9e0ec;--r:18px}
+@media(prefers-color-scheme:dark){:root:not([data-l]){--ink:#eaf0ff;--ink2:#a5b4d4;--bg:#0b1630;--card:#13244a;--line:#27407a}}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{font:15px/1.5 'Plus Jakarta Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);padding:env(safe-area-inset-top) 0 calc(76px + env(safe-area-inset-bottom))}
+h1,h2,h3{font-family:'Bricolage Grotesque',sans-serif;line-height:1.1}
+button,input,select{font:inherit;color:inherit}
+.wrap{max-width:980px;margin:auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;margin-bottom:14px}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.muted{color:var(--ink2);font-size:13px}
+.btn{border:0;border-radius:12px;padding:12px 18px;font-weight:700;cursor:pointer;background:var(--ink);color:var(--bg);min-height:44px}
+.btn.gold{background:var(--gold);color:#0f2347}.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}.btn.sm{padding:8px 12px;min-height:36px;font-size:13px}
+.btn:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+input,select{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--card);margin:6px 0 12px;min-height:44px}
+label{font-weight:700;font-size:13px}
+.hero{background:var(--ink);color:#fff;border-radius:24px;padding:24px;position:relative;overflow:hidden;margin-bottom:14px}
+.hero:after{content:"";position:absolute;right:-40px;top:-40px;width:180px;height:180px;border-radius:50%;background:var(--gold);opacity:.9}
+.hero h1{font-size:30px;position:relative;z-index:1;max-width:70%}.hero p{position:relative;z-index:1;opacity:.8}
+.big{font:800 54px 'Bricolage Grotesque';line-height:1}
+.badge{display:inline-block;padding:4px 10px;border-radius:99px;font-size:12px;font-weight:700;background:var(--gold);color:#0f2347}
+.badge.open{background:var(--teal);color:#fff}.badge.closed{background:var(--line);color:var(--ink2)}.badge.draft{background:transparent;border:1px solid var(--line);color:var(--ink2)}
+.row{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.item{padding:12px 0;border-bottom:1px solid var(--line)}.item:last-child{border:0}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:10px 6px;text-align:left;border-bottom:1px solid var(--line)}
+.scroll{overflow-x:auto}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom));z-index:5}
+nav button{flex:1;background:none;border:0;padding:10px 4px;border-radius:12px;font-weight:700;font-size:13px;color:var(--ink2);cursor:pointer;min-height:48px}
+nav button.on{background:var(--ink);color:var(--bg)}
+#reader{width:100%;max-width:420px;margin:auto;border-radius:var(--r);overflow:hidden}
+.modal{position:fixed;inset:0;background:#000a;display:grid;place-items:center;z-index:9;padding:16px}
+.modal>div{background:var(--card);border-radius:24px;padding:22px;width:100%;max-width:380px;text-align:center}
+.qrbox{background:#fff;padding:14px;border-radius:16px;display:inline-block;user-select:none;-webkit-user-select:none;pointer-events:none}
+.toast{position:fixed;left:50%;top:16px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:14px;z-index:20;max-width:90%;font-weight:700}
+.toast.err{background:var(--red);color:#fff}
+.logo{height:56px;width:56px;object-fit:contain;background:#fff;border-radius:14px;padding:6px;position:relative;z-index:1;display:block;margin-bottom:14px}
+nav .logo{height:36px;width:36px;padding:3px;margin:0 6px 0 0;border-radius:10px;border:1px solid var(--line);flex:none;align-self:center}
+@media(max-width:699px){nav .logo{display:none}}
+.center{min-height:80vh;display:grid;place-items:center}
+@media(min-width:700px){body{padding-bottom:0;padding-left:0}nav{position:sticky;top:0;bottom:auto;border:0;border-bottom:1px solid var(--line);justify-content:center;gap:6px}nav button{flex:0 0 auto;padding:10px 22px}}
+@media print{body{display:none}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ===== KONFIGURASI: tempel URL Web App Apps Script (berakhiran /exec) ===== */
+const API = 'https://script.google.com/macros/s/AKfycbwFAXCVAyZpCg0QuqjR9K9TGCFbXnV8_jhJt8UoSrMSe53ofTb7GcrNSYX1IeNteF-P/exec';
+/* ID file logo di Google Drive (set file: Bagikan > Siapa saja yang memiliki link > Viewer).
+   ID = bagian antara /d/ dan /view pada link Drive */
+const LOGO_ID = '1VG681TxFwY6CyFbWhzsfxDt1skDVo63v';
+/* ======================================================================== */
+const $ = s => document.querySelector(s), app = $('#app');
+let U = JSON.parse(localStorage.getItem('u') || 'null'), CH = {}, scanner = null;
+const YEAR = String(new Date().getFullYear()), NOW = new Date().toISOString().slice(0, 7);
+const LOGO = 'https://drive.google.com/thumbnail?id=' + LOGO_ID + '&sz=w400';
+const IMG = c => `<img class="${c}" src="${LOGO}" alt="Logo Duta Kampus ULBI" referrerpolicy="no-referrer" onerror="this.remove()">`;
+{ const l = document.createElement('link'); l.rel = 'icon'; l.href = LOGO; document.head.append(l); }
+const pending = new URLSearchParams(location.search).get('c'); // dari QR via kamera bawaan HP
+
+async function api(action, d = {}) {
+  const r = await fetch(API, { method: 'POST', body: JSON.stringify({ action, ...d, nim: U && U.nim, pin: U && U.pin }) });
+  const j = await r.json(); if (!j.ok) throw new Error(j.error); return j.data;
+}
+function toast(m, err) { const t = document.createElement('div'); t.className = 'toast' + (err ? ' err' : ''); t.textContent = m; document.body.append(t); setTimeout(() => t.remove(), 3200); }
+const guard = fn => async (...a) => { try { await fn(...a) } catch (e) { toast(e.message, 1) } };
+function chart(id, cfg) { if (CH[id]) CH[id].destroy(); CH[id] = new Chart($('#' + id), cfg); }
+function modal(html) { const m = document.createElement('div'); m.className = 'modal'; m.innerHTML = '<div>' + html + '</div>'; m.onclick = e => { if (e.target === m) m.remove() }; document.body.append(m); return m; }
+const bln = k => new Date(k + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+
+/* ---------- login ---------- */
+function loginView() {
+  app.innerHTML = `<div class="wrap center"><div style="width:100%;max-width:400px">
+  <div class="hero">${IMG('logo')}<h1>KPI Duta Kampus ULBI</h1><p>Masuk untuk absen dan lihat kinerjamu.</p></div>
+  <form class="card" id="f"><label>NIM</label><input id="nim" inputmode="numeric" autocomplete="username" required>
+  <label>PIN</label><input id="pin" type="password" autocomplete="current-password" required>
+  <button class="btn gold" style="width:100%">Masuk</button></form></div></div>`;
+  $('#f').onsubmit = guard(async e => {
+    e.preventDefault(); U = { nim: $('#nim').value.trim(), pin: $('#pin').value };
+    const r = await api('login'); U = { ...U, ...r }; localStorage.setItem('u', JSON.stringify(U)); start();
+  });
+}
+function logout() { localStorage.removeItem('u'); U = null; loginView(); }
+
+/* ---------- shell ---------- */
+const TABS = { member: [['home', 'Beranda'], ['scan', 'Scan QR']], admin: [['dash', 'Dashboard'], ['events', 'Acara'], ['nilai', 'Nilai']] };
+function start() {
+  if (!U) return loginView();
+  const tabs = TABS[U.role === 'admin' ? 'admin' : 'member'];
+  app.innerHTML = `<nav>${IMG('logo')}${tabs.map(t => `<button data-t="${t[0]}">${t[1]}</button>`).join('')}<button id="out">Keluar</button></nav><main class="wrap" id="main"></main>`;
+  document.querySelectorAll('nav [data-t]').forEach(b => b.onclick = () => go(b.dataset.t));
+  $('#out').onclick = logout;
+  if (pending) { history.replaceState(null, '', location.pathname); submitScan(pending); }
+  go(tabs[0][0]);
+}
+function go(t) {
+  stopScan();
+  document.querySelectorAll('nav [data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  $('#main').innerHTML = '<p class="muted">Memuat…</p>';
+  guard({ home, scan, dash, events, nilai }[t])();
+}
+
+/* ---------- anggota: beranda ---------- */
+async function home() {
+  const d = await api('me', { year: YEAR }), l = d.latest;
+  $('#main').innerHTML = `<div class="hero"><h1>Halo, ${d.nama.split(' ')[0]}</h1><p>${l ? 'Skor terakhir: ' + bln(l.bulan) : 'Belum ada penilaian tahun ini'}</p></div>
+  <div class="grid"><div class="card"><p class="muted">Skor KPI bulan terakhir</p><div class="big">${l ? l.total : '–'}</div>
+  <p class="muted">${l ? 'Peringkat ' + l.rank + ' · hadir ' + l.hadir + '/' + l.acara + ' acara' : ''}</p></div>
+  <div class="card"><p class="muted">Gelar ${YEAR}</p><div style="margin:8px 0">${d.isMOY ? '<span class="badge">Member of the Year</span> ' : ''}${d.momCount ? `<span class="badge">Member of the Month × ${d.momCount}</span>` : ''}${!d.isMOY && !d.momCount ? '<span class="muted">Belum ada gelar. Terus semangat!</span>' : ''}</div>
+  <button class="btn gold" onclick="go('scan')">Scan QR absensi</button></div></div>
+  <div class="card"><h3>Perkembangan kinerjamu</h3><canvas id="c1" height="140"></canvas></div>`;
+  chart('c1', { type: 'line', data: { labels: d.months.map(m => bln(m.bulan)), datasets: [{ label: 'Skor', data: d.months.map(m => m.total), borderColor: '#ffb400', backgroundColor: '#ffb40033', fill: true, tension: .35 }] }, options: { scales: { y: { min: 0, max: 100 } }, plugins: { legend: { display: false } } } });
+}
+
+/* ---------- anggota: scan QR dari web ---------- */
+function scan() {
+  $('#main').innerHTML = `<div class="card" style="text-align:center"><h2>Scan QR absensi</h2><p class="muted" style="margin:6px 0 14px">Arahkan kamera ke QR di layar panitia.</p>
+  <div id="reader"></div><p id="sm" class="muted" style="margin-top:10px"></p>
+  <button class="btn ghost sm" id="re" hidden>Coba kamera lagi</button></div>`;
+  $('#re').onclick = startScan; startScan();
+}
+function startScan() {
+  $('#re').hidden = true; $('#sm').textContent = 'Meminta izin kamera…';
+  scanner = new Html5Qrcode('reader');
+  scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: 240 }, txt => {
+    const c = (txt.split('c=')[1] || '').split('&')[0]; if (!c) return;
+    stopScan(); submitScan(c);
+  }).then(() => $('#sm').textContent = 'Kamera aktif').catch(() => {
+    $('#sm').textContent = 'Kamera tidak bisa dibuka. Izinkan akses kamera di browser, atau scan QR memakai aplikasi Kamera bawaan HP.'; $('#re').hidden = false;
+  });
+}
+function stopScan() { if (scanner) { scanner.stop().catch(() => {}).finally(() => { try { scanner.clear() } catch (e) {} scanner = null }); } }
+const submitScan = guard(async c => {
+  const [eventId, secret] = c.split('.'); const r = await api('scan', { eventId, secret });
+  toast('Hadir tercatat: ' + r.acara);
+  if (U.role !== 'admin') go('home');
+});
+
+/* ---------- admin: dashboard ---------- */
+async function dash() {
+  const d = await api('dashboard', { year: YEAR }), keys = Object.keys(d.stats);
+  if (!keys.length) { $('#main').innerHTML = '<div class="card"><h3>Belum ada data</h3><p class="muted">Buat acara dan input nilai dulu.</p></div>'; return; }
+  const cur = keys.includes(NOW) ? NOW : keys[keys.length - 1], names = d.yearly.map(y => y.nama);
+  $('#main').innerHTML = `<div class="hero"><h1>Kinerja Duta ${YEAR}</h1><p>${d.moy ? 'Member of the Year sementara: ' + d.moy.nama : 'MOY ditentukan dari rata-rata skor bulanan'}</p></div>
+  <div class="card row"><div><label>Bulan</label><select id="mo">${keys.map(k => `<option value="${k}" ${k === cur ? 'selected' : ''}>${bln(k)}</option>`).join('')}</select></div>
+  <div id="momb"></div></div>
+  <div class="grid"><div class="card"><h3>Peringkat bulan ini</h3><canvas id="c2"></canvas></div>
+  <div class="card"><h3>Tren per anggota</h3><select id="mb">${names.map(n => `<option>${n}</option>`).join('')}</select><canvas id="c3"></canvas></div></div>
+  <div class="card scroll"><table id="tb"></table></div>`;
+  const draw = () => {
+    const k = $('#mo').value, L = d.stats[k];
+    $('#momb').innerHTML = d.mom[k] ? `<span class="badge">Member of the Month</span> <b>${d.mom[k]}</b>` : '';
+    chart('c2', { type: 'bar', data: { labels: L.map(r => r.nama), datasets: [{ data: L.map(r => r.total), backgroundColor: L.map((r, i) => i ? '#3c4f73' : '#ffb400'), borderRadius: 8 }] }, options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { min: 0, max: 100 } } } });
+    $('#tb').innerHTML = '<tr><th>#</th><th>Nama</th><th>Hadir</th><th>Aktif</th><th>Eksekusi</th><th>Skor</th></tr>' + L.map((r, i) => `<tr><td>${i + 1}</td><td>${r.nama}</td><td>${r.hadir}/${r.acara}</td><td>${r.aktif}</td><td>${r.eksekusi}</td><td><b>${r.total}</b></td></tr>`).join('');
+  };
+  const trend = () => { const n = $('#mb').value; chart('c3', { type: 'line', data: { labels: keys.map(bln), datasets: [{ label: n, data: keys.map(k => (d.stats[k].find(r => r.nama === n) || {}).total), borderColor: '#0e9f8e', tension: .35 }] }, options: { scales: { y: { min: 0, max: 100 } } } }); };
+  $('#mo').onchange = draw; $('#mb').onchange = trend; draw(); trend();
+}
+
+/* ---------- admin: acara + QR ---------- */
+async function events() {
+  const ev = (await api('events')).reverse();
+  $('#main').innerHTML = `<div class="card"><h3>Buat acara</h3><form id="nf"><label>Nama acara</label><input id="en" required>
+  <label>Tanggal</label><input id="et" type="date" required><button class="btn gold">Simpan acara</button></form></div>
+  <div class="card"><h3>Daftar acara</h3>${ev.map(e => `<div class="item"><div class="row"><div><b>${e.nama}</b><br><span class="muted">${e.tanggal}</span> <span class="badge ${e.status}">${{ draft: 'Draft', open: 'Absensi dibuka', closed: 'Ditutup' }[e.status]}</span></div>
+  <div class="row"><button class="btn sm" data-q="${e.id}">QR</button><button class="btn sm ghost" data-m="${e.id}">Manual</button>
+  <button class="btn sm ghost" data-s="${e.id}" data-v="${e.status === 'open' ? 'closed' : 'open'}">${e.status === 'open' ? 'Tutup' : 'Buka'} absensi</button></div></div></div>`).join('') || '<p class="muted">Belum ada acara.</p>'}</div>`;
+  $('#nf').onsubmit = guard(async e => { e.preventDefault(); await api('createEvent', { nama: $('#en').value, tanggal: $('#et').value }); toast('Acara disimpan'); events(); });
+  document.querySelectorAll('[data-s]').forEach(b => b.onclick = guard(async () => { await api('setStatus', { id: b.dataset.s, status: b.dataset.v }); toast('Status diperbarui'); events(); }));
+  document.querySelectorAll('[data-q]').forEach(b => b.onclick = guard(async () => showQR(b.dataset.q, ev)));
+  document.querySelectorAll('[data-m]').forEach(b => b.onclick = guard(async () => manual(b.dataset.m)));
+}
+async function showQR(id, ev) {
+  const q = await api('qr', { id }), e = ev.find(x => x.id === id);
+  const m = modal(`<h3>${e.nama}</h3><p class="muted" style="margin:6px 0 14px">Tampilkan di layar. QR tidak bisa diunduh atau dicetak, hanya berlaku saat absensi dibuka.</p><div class="qrbox" id="qr"></div><button class="btn ghost" style="margin-top:14px;width:100%">Tutup</button>`);
+  new QRCode($('#qr'), { text: location.origin + location.pathname + '?c=' + q.id + '.' + q.secret, width: 240, height: 240 });
+  m.oncontextmenu = ev => ev.preventDefault(); m.querySelector('.btn').onclick = () => m.remove();
+}
+async function manual(id) {
+  const [mem, done] = await Promise.all([api('members'), api('attendees', { id })]);
+  const m = modal(`<h3>Absen manual</h3><select id="ms">${mem.map(x => `<option value="${x.nim}">${x.nama}${done.includes(x.nim) ? ' (hadir)' : ''}</option>`).join('')}</select><button class="btn gold" id="ok" style="width:100%">Catat hadir</button>`);
+  $('#ok').onclick = guard(async () => { await api('manual', { id, target: $('#ms').value }); toast('Kehadiran dicatat'); m.remove(); });
+}
+
+/* ---------- admin: input nilai ---------- */
+async function nilai() {
+  const mem = await api('members');
+  $('#main').innerHTML = `<div class="card"><h3>Input penilaian bulanan</h3><p class="muted" style="margin-bottom:10px">Kehadiran dihitung otomatis dari absensi. Isi keaktifan dan eksekusi (0–100).</p><form id="sf">
+  <label>Bulan</label><input id="sb" type="month" value="${NOW}" required><label>Anggota</label><select id="sn">${mem.map(x => `<option value="${x.nim}">${x.nama}</option>`).join('')}</select>
+  <label>Keaktifan</label><input id="sk" type="number" min="0" max="100" required><label>Eksekusi tugas</label><input id="se" type="number" min="0" max="100" required>
+  <label>Catatan</label><input id="sc"><button class="btn gold" style="width:100%">Simpan nilai</button></form></div>`;
+  $('#sf').onsubmit = guard(async e => { e.preventDefault(); await api('score', { bulan: $('#sb').value, target: $('#sn').value, keaktifan: $('#sk').value, eksekusi: $('#se').value, catatan: $('#sc').value }); toast('Nilai disimpan'); $('#sk').value = $('#se').value = $('#sc').value = ''; });
+}
+
+start();
+</script>
+</body>
+</html>
