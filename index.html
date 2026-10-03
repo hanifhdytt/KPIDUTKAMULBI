@@ -26,6 +26,9 @@ button,input,select{font:inherit;color:inherit}
 .btn:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 input,select{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--card);margin:6px 0 12px;min-height:44px}
 label{font-weight:700;font-size:13px}
+input[type=checkbox]{width:22px;height:22px;min-height:0;margin:0;padding:0;flex:none;accent-color:var(--gold);cursor:pointer}
+input[type=checkbox]:disabled{opacity:.35;cursor:not-allowed}
+.sel{display:flex;gap:10px;align-items:center;font-weight:700;font-size:14px;cursor:pointer}
 .hero{background:var(--ink);color:#fff;border-radius:24px;padding:24px;position:relative;overflow:hidden;margin-bottom:14px}
 .hero:after{content:"";position:absolute;right:-40px;top:-40px;width:180px;height:180px;border-radius:50%;background:var(--gold);opacity:.9}
 .hero h1{font-size:30px;position:relative;z-index:1;max-width:70%}.hero p{position:relative;z-index:1;opacity:.8}
@@ -207,20 +210,32 @@ async function nilai() {
 
 /* ---------- admin: kelola anggota ---------- */
 async function anggota() {
-  const list = await api('memberList');
+  const list = await api('memberList'), sel = new Set();
   $('#main').innerHTML = `<div class="card"><div class="row"><h3>Kelola anggota (${list.length})</h3><button class="btn gold sm" id="add">+ Tambah anggota</button></div>
-  <input id="q" placeholder="Cari nama atau NIM" style="margin-top:12px"><div id="ml"></div></div>`;
-  const draw = () => {
-    const q = $('#q').value.toLowerCase();
-    $('#ml').innerHTML = list.filter(m => (m.nama + m.nim).toLowerCase().includes(q)).map(m => `<div class="item"><div class="row"><div><b>${esc(m.nama)}</b> ${m.role === 'admin' ? '<span class="badge">Admin</span>' : ''}<br><span class="muted">${esc(m.nim)} · ${esc(m.divisi || 'Tanpa divisi')}</span></div>
-    <div class="row"><button class="btn sm ghost" data-e="${esc(m.nim)}">Edit</button><button class="btn sm ghost" data-d="${esc(m.nim)}">Hapus</button></div></div></div>`).join('') || '<p class="muted" style="margin-top:10px">Tidak ada anggota yang cocok.</p>';
-    document.querySelectorAll('[data-e]').forEach(b => b.onclick = () => memberForm(list.find(m => m.nim === b.dataset.e)));
-    document.querySelectorAll('[data-d]').forEach(b => b.onclick = guard(async () => {
-      const m = list.find(x => x.nim === b.dataset.d);
-      if (!confirm('Hapus ' + m.nama + '? Data absensi dan nilai lama tetap tersimpan di Sheet.')) return;
-      await api('memberDelete', { target: m.nim }); toast('Anggota dihapus'); anggota();
-    }));
+  <input id="q" placeholder="Cari nama atau NIM" style="margin-top:12px">
+  <div class="row item" style="padding-top:0"><label class="sel"><input type="checkbox" id="all"> Pilih semua</label><button class="btn sm" id="del" style="background:var(--red);color:#fff" disabled>Hapus terpilih</button></div>
+  <div id="ml"></div></div>`;
+  const vis = () => { const q = $('#q').value.toLowerCase(); return list.filter(m => (m.nama + m.nim).toLowerCase().includes(q)); };
+  const sync = () => {
+    const v = vis().filter(m => m.nim !== U.nim);
+    $('#del').disabled = !sel.size; $('#del').textContent = 'Hapus terpilih' + (sel.size ? ' (' + sel.size + ')' : '');
+    $('#all').checked = v.length > 0 && v.every(m => sel.has(m.nim));
   };
+  const draw = () => {
+    $('#ml').innerHTML = vis().map(m => `<div class="item"><div class="row" style="flex-wrap:nowrap"><label class="sel" style="flex:1;font-weight:400">
+    <input type="checkbox" data-c="${esc(m.nim)}" ${sel.has(m.nim) ? 'checked' : ''} ${m.nim === U.nim ? 'disabled title="Akun yang sedang dipakai"' : ''} aria-label="Pilih ${esc(m.nama)}">
+    <span><b>${esc(m.nama)}</b> ${m.role === 'admin' ? '<span class="badge">Admin</span>' : ''}<br><span class="muted">${esc(m.nim)} · ${esc(m.divisi || 'Tanpa divisi')}</span></span></label>
+    <button class="btn sm ghost" data-e="${esc(m.nim)}">Edit</button></div></div>`).join('') || '<p class="muted" style="margin-top:10px">Tidak ada anggota yang cocok.</p>';
+    document.querySelectorAll('[data-e]').forEach(b => b.onclick = () => memberForm(list.find(m => m.nim === b.dataset.e)));
+    document.querySelectorAll('[data-c]').forEach(c => c.onchange = () => { c.checked ? sel.add(c.dataset.c) : sel.delete(c.dataset.c); sync(); });
+    sync();
+  };
+  $('#all').onchange = e => { vis().filter(m => m.nim !== U.nim).forEach(m => e.target.checked ? sel.add(m.nim) : sel.delete(m.nim)); draw(); };
+  $('#del').onclick = guard(async () => {
+    const names = list.filter(m => sel.has(m.nim)).map(m => m.nama);
+    if (!confirm('Hapus ' + names.length + ' anggota?\n\n' + names.slice(0, 8).join('\n') + (names.length > 8 ? '\n…dan ' + (names.length - 8) + ' lainnya' : '') + '\n\nData absensi dan nilai lama tetap tersimpan di Sheet.')) return;
+    const n = await api('memberDelete', { targets: [...sel] }); toast(n + ' anggota dihapus'); anggota();
+  });
   $('#q').oninput = draw; $('#add').onclick = () => memberForm(null); draw();
 }
 function memberForm(m) {
