@@ -26,6 +26,9 @@ button,input,select{font:inherit;color:inherit}
 .btn:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 input,select{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--card);margin:6px 0 12px;min-height:44px}
 label{font-weight:700;font-size:13px}
+.pw{position:relative}.pw input{padding-right:84px}
+.pw button{position:absolute;right:6px;top:12px;height:32px;border:0;border-radius:8px;padding:0 12px;background:var(--bg);color:var(--ink);font-weight:700;font-size:13px;cursor:pointer}
+.pw button:focus-visible{outline:3px solid var(--gold)}
 input[type=checkbox]{width:22px;height:22px;min-height:0;margin:0;padding:0;flex:none;accent-color:var(--gold);cursor:pointer}
 input[type=checkbox]:disabled{opacity:.35;cursor:not-allowed}
 .sel{display:flex;gap:10px;align-items:center;font-weight:700;font-size:14px;cursor:pointer}
@@ -66,7 +69,7 @@ const API = 'https://script.google.com/macros/s/AKfycbwFAXCVAyZpCg0QuqjR9K9TGCFb
 const LOGO_ID = '1VG681TxFwY6CyFbWhzsfxDt1skDVo63v';
 /* ======================================================================== */
 const $ = s => document.querySelector(s), app = $('#app');
-let U = JSON.parse(localStorage.getItem('u') || 'null'), CH = {}, scanner = null;
+let U = JSON.parse(localStorage.getItem('u') || sessionStorage.getItem('u') || 'null'), CH = {}, scanner = null;
 const YEAR = String(new Date().getFullYear()), NOW = new Date().toISOString().slice(0, 7);
 const LOGO = 'https://drive.google.com/thumbnail?id=' + LOGO_ID + '&sz=w400';
 const IMG = c => `<img class="${c}" src="${LOGO}" alt="Logo Duta Kampus ULBI" referrerpolicy="no-referrer" onerror="this.remove()">`;
@@ -89,14 +92,23 @@ function loginView() {
   app.innerHTML = `<div class="wrap center"><div style="width:100%;max-width:400px">
   <div class="hero">${IMG('logo')}<h1>KPI Duta Kampus ULBI</h1><p>Masuk untuk absen dan lihat kinerjamu.</p></div>
   <form class="card" id="f"><label>NIM</label><input id="nim" inputmode="numeric" autocomplete="username" required>
-  <label>PIN</label><input id="pin" type="password" autocomplete="current-password" required>
+  <label for="pin">PIN</label><div class="pw"><input id="pin" type="password" autocomplete="current-password" required><button type="button" id="eye" aria-pressed="false" aria-label="Tampilkan PIN">Lihat</button></div>
+  <label class="sel" style="font-weight:500;margin:2px 0 16px"><input type="checkbox" id="rem"> Ingat saya di perangkat ini</label>
   <button class="btn gold" style="width:100%">Masuk</button></form></div></div>`;
+  $('#eye').onclick = () => {
+    const show = $('#pin').type === 'password'; $('#pin').type = show ? 'text' : 'password';
+    $('#eye').textContent = show ? 'Sembunyi' : 'Lihat'; $('#eye').setAttribute('aria-pressed', show); $('#eye').setAttribute('aria-label', show ? 'Sembunyikan PIN' : 'Tampilkan PIN');
+  };
   $('#f').onsubmit = guard(async e => {
     e.preventDefault(); U = { nim: $('#nim').value.trim(), pin: $('#pin').value };
-    const r = await api('login'); U = { ...U, ...r }; localStorage.setItem('u', JSON.stringify(U)); start();
+    let r; try { r = await api('login'); } catch (err) { U = null; throw err; }
+    U = { ...U, ...r };
+    localStorage.removeItem('u'); sessionStorage.removeItem('u');
+    // dicentang: tetap masuk walau browser ditutup; tidak dicentang: berakhir saat tab/browser ditutup
+    ($('#rem').checked ? localStorage : sessionStorage).setItem('u', JSON.stringify(U)); start();
   });
 }
-function logout() { localStorage.removeItem('u'); U = null; loginView(); }
+function logout() { localStorage.removeItem('u'); sessionStorage.removeItem('u'); U = null; loginView(); }
 
 /* ---------- shell ---------- */
 const TABS = { member: [['home', 'Beranda'], ['scan', 'Scan QR']], admin: [['dash', 'Dashboard'], ['events', 'Acara'], ['nilai', 'Nilai'], ['anggota', 'Anggota']] };
@@ -252,7 +264,7 @@ function memberForm(m) {
     e.preventDefault();
     const pin = $('#mp').value.trim(), nim = $('#mn').value.trim();
     await api('memberSave', { isNew, target: nim, nama: $('#mm').value, newPin: pin, divisi: $('#mv').value, role: $('#mr').value });
-    if (!isNew && nim === U.nim && pin) { U.pin = pin; localStorage.setItem('u', JSON.stringify(U)); }
+    if (!isNew && nim === U.nim && pin) { U.pin = pin; (localStorage.getItem('u') ? localStorage : sessionStorage).setItem('u', JSON.stringify(U)); }
     toast('Anggota disimpan'); mo.remove(); anggota();
   });
 }
