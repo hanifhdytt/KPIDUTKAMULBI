@@ -595,7 +595,23 @@ async function anggota() {
   const sync=()=>{if(!$('#all')||!$('#del'))return;const v=vis().filter(m=>m.nim!==U.nim);$('#del').disabled=!sel.size;$('#del').textContent='Hapus Terpilih'+(sel.size?' ('+sel.size+')':'');$('#all').checked=v.length>0&&v.every(m=>sel.has(m.nim))};
   const initials=n=>String(n||'?').split(/\s+/).slice(0,2).map(x=>x[0]).join('').toUpperCase();
   const draw=()=>{$('#ml').innerHTML=vis().map(m=>`<div class="member-row"><input type="checkbox" data-c="${esc(m.nim)}" ${sel.has(m.nim)?'checked':''} ${m.nim===U.nim?'disabled':''}><div class="member-avatar">${initials(m.nama)}</div><div class="member-main"><b>${esc(m.nama)} ${normalizeRole(m.role)==='superadmin'?'<span class="badge superadmin">Super Admin</span>':(normalizeRole(m.role)==='admin'?'<span class="badge admin">Admin</span>':'')}</b><span class="muted">${esc(m.nim)} · ${esc(m.divisi||'Tanpa divisi')}</span></div><div class="member-actions"><button class="btn sm ghost" data-e="${esc(m.nim)}">Edit</button></div></div>`).join('')||'<div class="empty"><div class="empty-icon">⌕</div><b>Anggota tidak ditemukan</b><p class="muted">Coba nama atau NIM lain.</p></div>';document.querySelectorAll('[data-e]').forEach(b=>b.onclick=()=>memberForm(list.find(m=>m.nim===b.dataset.e)));document.querySelectorAll('[data-c]').forEach(c=>c.onchange=()=>{c.checked?sel.add(c.dataset.c):sel.delete(c.dataset.c);sync()});sync()};
-  $('#all').onchange=e=>{vis().filter(m=>m.nim!==U.nim).forEach(m=>e.target.checked?sel.add(m.nim):sel.delete(m.nim));draw()};$('#del').onclick=guard(async()=>{const names=list.filter(m=>sel.has(m.nim)).map(m=>m.nama);if(!confirm('Hapus '+names.length+' anggota?\\n\\n'+names.slice(0,8).join('\\n')+'\\n\\nData absensi dan nilai lama tetap tersimpan di Sheet.'))return;const n=await api('memberDelete',{targets:[...sel]});toast(n+' anggota dihapus');anggota()});$('#q').oninput=draw;$('#add').onclick=()=>memberForm(null);draw();
+  $('#all').onchange=e=>{vis().filter(m=>m.nim!==U.nim).forEach(m=>e.target.checked?sel.add(m.nim):sel.delete(m.nim));draw()};
+  $('#del').onclick=guard(async()=>{
+    const targets=[...sel];
+    const names=list.filter(m=>sel.has(m.nim)).map(m=>m.nama);
+    if(!targets.length)return;
+    if(!confirm('Hapus '+targets.length+' anggota?\n\n'+names.slice(0,8).join('\n')+'\n\nData absensi dan nilai lama tetap tersimpan di Sheet.'))return;
+    const btn=$('#del'); btn.disabled=true; btn.textContent='Menghapus…';
+    try{
+      const n=await api('memberDelete',{targets});
+      toast(n+' anggota berhasil dihapus');
+      await anggota();
+    }catch(err){
+      toast(err.message||'Gagal menghapus anggota',1);
+      sync();
+    }
+  });
+  $('#q').oninput=draw;$('#add').onclick=()=>memberForm(null);draw();
 }
 
 
@@ -603,7 +619,7 @@ function memberForm(m) {
   const isNew=!m;
   const mo=modal(`<div class="form-title"><h3>${isNew?'Tambah Anggota':'Edit Anggota'}</h3><p class="muted">${isNew?'Buat akun anggota baru.':'Perbarui informasi akun anggota.'}</p></div><form id="mf" style="text-align:left"><label>NIM</label><input id="mn" inputmode="numeric" placeholder="Masukkan NIM" value="${isNew?'':esc(m.nim)}" ${isNew?'':'readonly'} required><label>Nama</label><input id="mm" placeholder="Nama lengkap" value="${isNew?'':esc(m.nama)}" required><label>PIN</label><input id="mp" type="password" placeholder="${isNew?'Minimal 4 karakter':'Kosongkan jika tidak diubah'}" ${isNew?'required':''}><label>Divisi</label><input id="mv" placeholder="Contoh: Humas, Kreatif" value="${isNew?'':esc(m.divisi||'')}"><label>Peran</label><select id="mr"><option value="member">Anggota</option><option value="admin">Admin</option>${isSuperAdmin()?'<option value="superadmin">Super Admin</option>':''}</select><button class="btn gold" style="width:100%;margin-top:6px">Simpan Anggota</button></form>`);
   $('#mr').value=isNew?'member':(m.role==='superadmin' && !isSuperAdmin()?'admin':m.role);
-  $('#mf').onsubmit=guard(async e=>{e.preventDefault();const pin=$('#mp').value.trim(),nim=$('#mn').value.trim();await api('memberSave',{isNew,target:nim,nama:$('#mm').value,newPin:pin,divisi:$('#mv').value,role:$('#mr').value});if(!isNew&&nim===U.nim&&pin){U.pin=pin;if(localStorage.getItem('rem'))localStorage.setItem('rem',JSON.stringify({nim:U.nim,pin}));(localStorage.getItem('u')?localStorage:sessionStorage).setItem('u',JSON.stringify(U))}toast('Anggota berhasil disimpan');mo.remove();anggota()});
+  $('#mf').onsubmit=guard(async e=>{e.preventDefault();const pin=$('#mp').value.trim(),nim=$('#mn').value.trim();await api('memberSave',{isNew,target:nim,nama:$('#mm').value,newPin:pin,divisi:$('#mv').value,role:$('#mr').value});if(!isNew&&nim===U.nim&&pin){U.pin=pin;if(localStorage.getItem('rem'))localStorage.setItem('rem',JSON.stringify({nim:U.nim,pin}));(localStorage.getItem('u')?localStorage:sessionStorage).setItem('u',JSON.stringify(U))}toast('Anggota berhasil disimpan');mo.remove();await anggota()});
 }
 
 start();
