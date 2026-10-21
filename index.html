@@ -235,16 +235,24 @@ async function api(action, d = {}) {
   let last;
   for (let attempt = 0; attempt < maxTry; attempt++) {
     try {
-      const r = await fetch(API, {
-        method: 'POST',
-        headers: {'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify({
-          action, ...d,
-          nim: U && U.nim,
-          pin: U && U.pin,
-          token: U && U.token
-        })
-      });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), action === 'login' ? 20000 : 25000);
+      let r;
+      try {
+        r = await fetch(API, {
+          method: 'POST',
+          headers: {'Content-Type':'text/plain;charset=utf-8'},
+          body: JSON.stringify({
+            action, ...d,
+            nim: U && U.nim,
+            pin: U && U.pin,
+            token: U && U.token
+          }),
+          signal: controller.signal
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
       const text = await r.text();
       let j;
       try { j = JSON.parse(text); } catch(e) {
@@ -263,7 +271,7 @@ async function api(action, d = {}) {
       return j.data;
     } catch (e) {
       last = e;
-      const retryable = e && (e.retryable || e.name === 'TypeError' || /Failed to fetch|NetworkError|Load failed/i.test(e.message || ''));
+      const retryable = e && (e.retryable || e.name === 'TypeError' || e.name === 'AbortError' || /Failed to fetch|NetworkError|Load failed|aborted/i.test(e.message || ''));
       if (!retryable || attempt >= maxTry - 1) throw e;
       await new Promise(resolve => setTimeout(resolve, 300 * Math.pow(2, attempt) + Math.random() * 180));
     }
@@ -350,8 +358,8 @@ async function start(refresh=true) {
   if(!isAdmin) app.innerHTML=`<header class="brand-header"><div class="brand-inner">${IMG('logo')}<div class="brand-copy"><strong>Duta Kampus ULBI</strong><span>KPI • SISTEM KINERJA & KEHADIRAN</span></div></div></header><nav class="member-nav">${memberNavMarkup(tabs)}</nav><main class="wrap" id="main"></main>`;
   else app.innerHTML=`<div class="admin-shell"><aside class="admin-side"><div class="admin-side-brand">${IMG('side-logo')}<div><b>KPI Duta Kampus</b><span>ULBI PERFORMANCE SYSTEM</span></div></div><div class="side-nav">${tabs.map(t=>`<button data-t="${t[0]}">${t[1]}</button>`).join('')}</div><div class="side-bottom"><button class="btn ghost" id="out" style="width:100%">Keluar</button></div></aside><section class="admin-content"><div class="admin-topbar"><nav>${IMG('logo')}${tabs.map(t=>`<button data-t="${t[0]}">${t[1]}</button>`).join('')}<button id="out">Keluar</button></nav></div><main class="wrap" id="main"></main></section></div>`;
   document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>b.dataset.t==='out'?logout():go(b.dataset.t));document.querySelectorAll('#out').forEach(b=>b.onclick=logout);
-  // Validasi session dilakukan di belakang layar agar first paint tidak menunggu request kedua.
-  if(refresh) api('login').then(r=>{ if(!U)return; U={...U,...r,role:normalizeRole(r.role)}; const store=localStorage.getItem('u')?localStorage:sessionStorage; store.setItem('u',JSON.stringify(U)); }).catch(()=>{});
+  // Hindari request login kedua setiap halaman dibuka. API yang dibutuhkan oleh
+  // halaman aktif sudah memvalidasi sesi; ini mengurangi beban dan waktu tunggu.
   if(pending){const c=pending;pending=null;history.replaceState(null,'',location.pathname);submitScan(c)} go(tabs[0][0]);
 }
 
@@ -443,17 +451,30 @@ function stopScan() {
   s.stop().catch(() => {}).finally(() => { try { s.clear(); } catch (e) {} });
 }
 
-const submitScan = guard(async c => {
+const submitScan = async c => {
+  const status = $('#sm'), retry = $('#re');
   try {
-    const [eventId, secret] = c.split('.');
+    const [eventId, secret] = String(c || '').split('.');
     if (!eventId || !secret) throw new Error('QR absensi tidak valid.');
+    if (status) status.textContent = 'QR terbaca • memverifikasi dan menyimpan…';
     const r = await api('scan', { eventId, secret });
-    toast('Hadir tercatat: ' + r.acara);
-    if (!isAdminRole()) go('home');
+    toast(r.sudah ? 'Kehadiran kamu sudah tercatat.' : 'Hadir tercatat: ' + r.acara);
+    if (!isAdminRole()) {
+      // Beri waktu agar UI beranda membaca ulang data terbaru dari Sheet.
+      await new Promise(resolve => setTimeout(resolve, 250));
+      go('home');
+    } else {
+      if (status) status.textContent = 'Berhasil tercatat • admin dapat memuat ulang daftar acara.';
+      if (retry) { retry.hidden = false; retry.textContent = 'Scan QR lain'; retry.onclick = () => go('scan'); }
+    }
+  } catch (err) {
+    toast(err.message || 'Scan gagal. Silakan coba lagi.', 1);
+    if (status) status.textContent = (err.message || 'Scan gagal') + ' • tekan tombol untuk mencoba lagi.';
+    if (retry) { retry.hidden = false; retry.textContent = 'Coba scan lagi'; retry.onclick = () => { scanSubmitting = false; startScan(); }; }
   } finally {
     scanSubmitting = false;
   }
-});
+};
 
 /* ---------- admin: dashboard ---------- */
 async function dash() {
@@ -482,10 +503,11 @@ async function diagnosa() {
 /* ---------- admin: acara + QR ---------- */
 async function events() {
   const ev=(await api('events')).reverse();
-  $('#main').innerHTML=`<div class="toolbar"><div><h2>Kelola Acara</h2><p class="muted">Buat acara, buka absensi, pantau, dan kelola data kehadiran.</p></div><button class="btn gold" id="open-create">+ Buat Acara</button></div>
+  $('#main').innerHTML=`<div class="toolbar"><div><h2>Kelola Acara</h2><p class="muted">Buat acara, buka absensi, pantau, dan kelola data kehadiran.</p></div><div class="export-actions"><button class="btn ghost" id="refresh-events">↻ Perbarui Data</button><button class="btn gold" id="open-create">+ Buat Acara</button></div></div>
   <div class="card" id="create-box" hidden><div class="form-title"><h3>Buat acara baru</h3><p class="muted">Isi informasi dasar acara.</p></div><form id="nf"><label>Nama acara</label><input id="en" placeholder="Contoh: Rapat Koordinasi Duta Kampus" required><label>Tanggal</label><input id="et" type="date" required><div class="row"><button type="button" class="btn ghost sm" id="cancel-create">Batal</button><button class="btn gold">Simpan Acara</button></div></form></div>
   <div class="card"><div class="section-head"><div><h3>Daftar Acara</h3><p class="muted">${ev.length} acara tercatat.</p></div></div>${ev.map(e=>`<div class="event-card item"><div class="event-top"><div><div class="event-name">${esc(e.nama)}</div><div class="muted" style="margin-top:5px">${esc(e.tanggal)} · ${e.hadir} hadir</div></div><span class="badge ${e.status}">${{draft:'Draft',open:'● Absensi dibuka',closed:'Ditutup'}[e.status]}</span></div><div class="event-actions"><button class="btn sm" data-q="${esc(e.id)}">QR Absensi</button><button class="btn sm ghost" data-a="${esc(e.id)}">Kelola Absensi</button><button class="btn sm ghost" data-s="${esc(e.id)}" data-v="${e.status==='open'?'closed':'open'}">${e.status==='open'?'Tutup Absensi':'Buka Absensi'}</button>${e.status!=='open'?`<button class="btn sm danger" data-d="${esc(e.id)}">Hapus</button>`:''}</div></div>`).join('')||'<div class="empty"><div class="empty-icon">📅</div><b>Belum ada acara</b><p class="muted">Buat acara pertama untuk mulai mencatat kehadiran.</p></div>'}</div>`;
   $('#open-create').onclick=()=>{$('#create-box').hidden=false;$('#en').focus()};$('#cancel-create').onclick=()=>$('#create-box').hidden=true;
+  $('#refresh-events').onclick=guard(async()=>{const b=$('#refresh-events');b.disabled=true;b.textContent='Memuat…';await events();});
   $('#nf').onsubmit=guard(async e=>{e.preventDefault();await api('createEvent',{nama:$('#en').value,tanggal:$('#et').value});toast('Acara berhasil dibuat');events()});
   document.querySelectorAll('[data-s]').forEach(b=>b.onclick=guard(async()=>{await api('setStatus',{id:b.dataset.s,status:b.dataset.v});toast('Status absensi diperbarui');events()}));
   document.querySelectorAll('[data-q]').forEach(b=>b.onclick=guard(async()=>showQR(b.dataset.q,ev)));
@@ -502,7 +524,7 @@ async function events() {
 async function manageAttendance(id, ev) {
   const e = ev.find(x => x.id === id);
   let list = await api('attendanceManage', {id});
-  const m = modal(`<div class="section-head"><div><h3>Kelola Absensi</h3><p class="muted">${esc(e ? e.nama : id)} · semua anggota sudah terdaftar. QR otomatis menjadi Hadir; admin hanya perlu menangani yang belum scan atau mengoreksi status.</p></div><button class="btn ghost sm" id="att-close-top">Tutup</button></div>
+  const m = modal(`<div class="section-head"><div><h3>Kelola Absensi</h3><p class="muted">${esc(e ? e.nama : id)} · data dibaca langsung dari database. QR otomatis menjadi Hadir.</p></div><div class="export-actions"><button class="btn ghost sm" id="att-refresh">↻ Perbarui</button><button class="btn ghost sm" id="att-close-top">Tutup</button></div></div>
     <div class="att-summary" id="att-summary"></div><p class="muted" style="margin:8px 0 12px">Anggota yang scan QR otomatis tercatat <b>Hadir</b>. Untuk yang belum scan, admin dapat memilih <b>Hadir</b>, <b>Izin</b>, atau <b>Sakit</b>.</p>
     <div class="att-filter"><input id="att-search" placeholder="Cari nama atau NIM…"><select id="att-filter"><option value="semua">Semua status</option><option value="belum">Belum</option><option value="hadir">Hadir</option><option value="izin">Izin</option><option value="sakit">Sakit</option></select></div>
     <div class="attendance-list" id="att-list"></div>
@@ -529,9 +551,28 @@ async function manageAttendance(id, ev) {
       toast(`${row?row.nama:nim}: ${statusLabel[status]}`); draw();
     }));
   };
+  const reloadAttendance = guard(async()=>{
+    const b=$('#att-refresh');
+    if(b){b.disabled=true;b.textContent='Memuat…';}
+    try {
+      list = await api('attendanceManage', {id});
+      draw();
+    } finally {
+      const current=$('#att-refresh');
+      if(current){current.disabled=false;current.textContent='↻ Perbarui';}
+    }
+  });
   $('#att-search').oninput=draw; $('#att-filter').onchange=draw;
-  $('#att-close').onclick=()=>m.remove(); $('#att-close-top').onclick=()=>m.remove();
+  let liveTimer = null;
+  const closeModal = () => { if(liveTimer) clearInterval(liveTimer); m.remove(); };
+  $('#att-refresh').onclick=reloadAttendance;
+  $('#att-close').onclick=closeModal; $('#att-close-top').onclick=closeModal;
   draw();
+  // Auto-refresh agar scan yang baru masuk terlihat tanpa menutup modal admin.
+  liveTimer = setInterval(() => {
+    if(!document.body.contains(m)){clearInterval(liveTimer);return;}
+    reloadAttendance();
+  }, 5000);
 }
 
 async function showQR(id, ev) {
@@ -544,7 +585,7 @@ async function showQR(id, ev) {
 async function manual(id) {
   const [mem, done] = await Promise.all([api('members'), api('attendees', { id })]);
   const m = modal(`<h3>Absen manual</h3><select id="ms">${mem.map(x => `<option value="${x.nim}">${x.nama}${done.includes(x.nim) ? ' (hadir)' : ''}</option>`).join('')}</select><button class="btn gold" id="ok" style="width:100%">Catat hadir</button>`);
-  $('#ok').onclick = guard(async () => { await api('manual', { id, target: $('#ms').value }); toast('Kehadiran dicatat'); m.remove(); });
+  $('#ok').onclick = guard(async () => { await api('manual', { id, target: $('#ms').value }); toast('Kehadiran dicatat'); m.remove(); await events(); });
 }
 
 /* ---------- admin: input nilai ---------- */
