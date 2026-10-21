@@ -211,6 +211,43 @@ button,a,input,select{touch-action:manipulation;-webkit-tap-highlight-color:tran
   nav.member-nav .nav-item[data-t="scan"].on .nav-icon{width:54px;height:54px;flex-basis:54px}
 }
 
+
+
+/* ===== FIX DESKTOP MEMBER NAV: tampilkan ikon + label, bukan tombol kosong ===== */
+@media (min-width:700px){
+  body{padding-bottom:0!important}
+  nav.member-nav{
+    position:relative!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;
+    transform:none!important;display:flex!important;align-items:center;justify-content:flex-start;gap:8px;
+    width:min(calc(100% - 48px),1180px);height:auto;min-height:66px;margin:16px auto 0;padding:10px 14px;
+    background:rgba(255,255,255,.97);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow);z-index:2;
+  }
+  nav.member-nav .nav-item{
+    display:flex!important;flex:0 0 auto;flex-direction:row;align-items:center;justify-content:center;gap:8px;
+    min-width:130px;min-height:44px;height:auto;padding:10px 14px;margin:0;
+    background:transparent;border:1px solid transparent;border-radius:11px;color:var(--ink2);
+    box-shadow:none;transform:none;text-align:center;
+  }
+  nav.member-nav .nav-icon{
+    display:grid!important;place-items:center;width:22px!important;height:22px!important;
+    flex:0 0 22px!important;transform:none!important;border:0!important;border-radius:0!important;
+    background:transparent!important;color:currentColor!important;box-shadow:none!important;
+  }
+  nav.member-nav .nav-icon svg{display:block;width:21px;height:21px}
+  nav.member-nav .nav-label{display:block!important;margin:0!important;color:inherit!important;font-size:12px;line-height:1.2;font-weight:800}
+  nav.member-nav .nav-item.on{background:var(--navy);border-color:var(--navy);color:#fff;box-shadow:0 5px 14px rgba(16,38,77,.12)}
+  nav.member-nav .nav-item[data-t="scan"] .nav-icon,
+  nav.member-nav .nav-item[data-t="scan"].on .nav-icon{
+    width:22px!important;height:22px!important;flex-basis:22px!important;transform:none!important;
+    background:transparent!important;color:currentColor!important;border:0!important;box-shadow:none!important;
+  }
+  nav.member-nav .nav-item[data-t="scan"] .nav-label,
+  nav.member-nav .nav-item[data-t="scan"].on .nav-label{margin:0!important;color:inherit!important}
+  nav.member-nav .nav-item[data-t="out"]{margin-left:auto;color:var(--red)}
+  nav.member-nav .nav-item[data-t="out"] .nav-icon{color:var(--red)!important}
+  nav.member-nav .nav-item[data-t="out"].on{background:#fff0ef;color:var(--red);border-color:#f4d2d0}
+}
 </style>
 </head>
 <body>
@@ -373,7 +410,19 @@ function go(t) {
 
 /* ---------- anggota: beranda ---------- */
 async function home() {
-  const d=await api('me',{year:YEAR}),l=d.latest;
+  const d=await api('me',{year:YEAR});
+  // Fallback compatibility: if a deployed backend returns the old me payload,
+  // request the dedicated direct-from-Sheet attendance endpoint once.
+  if (!Array.isArray(d.attendance) || d.attendance.length === 0) {
+    try {
+      const direct = await api('myAttendance',{year:YEAR});
+      if (direct && Array.isArray(direct.rows) && direct.rows.length) {
+        d.attendance = direct.rows;
+        d.attendanceTotal = direct.total;
+      }
+    } catch (e) { console.warn('Fallback riwayat absensi tidak tersedia:', e); }
+  }
+  const l=d.latest;
   const awards = [
     ...(d.momAwards||[]).map(a=>`<div class="rank-row"><div class="rank-no top">★</div><div><div class="rank-name">Member of the Month</div><div class="rank-meta">${esc(bln(a.bulan))}</div></div><span class="badge">MOM</span></div>`),
     ...(d.isMOY?[`<div class="rank-row"><div class="rank-no top">★</div><div><div class="rank-name">Member of the Year</div><div class="rank-meta">Pencapaian tahunan</div></div><span class="badge">MOY</span></div>`]:[])
