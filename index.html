@@ -195,6 +195,8 @@ button,a,input,select{touch-action:manipulation;-webkit-tap-highlight-color:tran
   nav.member-nav .nav-item[data-t="out"] .nav-icon{color:var(--red)!important}
   nav.member-nav .nav-item[data-t="out"].on{background:#fff0ef;color:var(--red);border-color:#f4d2d0}
 }
+.scan-photo{width:100%;margin-top:10px}
+@media(max-width:699px){.scan-photo{background:rgba(255,255,255,.12)!important;color:#fff!important;border-color:rgba(255,255,255,.28)!important}}
 </style>
 </head>
 <body>
@@ -210,6 +212,12 @@ const $ = s => document.querySelector(s), app = $('#app');
 let U = null;
 try { U = JSON.parse(localStorage.getItem('u') || sessionStorage.getItem('u') || 'null'); } catch (e) { U = null; }
 let CH = {}, scanner = null;
+const UA = navigator.userAgent || '';
+const IS_IOS = /iP(hone|ad|od)/.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+// Browser di dalam aplikasi (WhatsApp, Instagram, dll.) sering memblokir kamera
+const IN_APP = /FBAN|FBAV|FB_IAB|Instagram|Line\/|MicroMessenger|TikTok|Snapchat|Twitter|WhatsApp|GSA\/|; wv\)/i.test(UA);
+function sDel(area, k) { try { window[area].removeItem(k); } catch (e) {} }
+function sSet(area, k, v) { try { window[area].setItem(k, v); return true; } catch (e) { return false; } }
 const _now = new Date();
 const YEAR = String(_now.getFullYear());
 const NOW = YEAR + '-' + String(_now.getMonth() + 1).padStart(2, '0'); // bulan LOKAL (bukan UTC)
@@ -227,7 +235,7 @@ function persistU() {
   try { (localStorage.getItem('u') ? localStorage : sessionStorage).setItem('u', JSON.stringify(U)); } catch (e) {}
 }
 function forceLogout(msg) {
-  localStorage.removeItem('u'); sessionStorage.removeItem('u');
+  sDel('localStorage', 'u'); sDel('sessionStorage', 'u');
   U = null; NAV++; stopScan();
   document.querySelectorAll('.modal').forEach(m => m.remove());
   loginView();
@@ -235,6 +243,8 @@ function forceLogout(msg) {
 }
 
 async function api(action, d = {}) {
+  // nim/pin/token dipakai untuk autentikasi dan menimpa field bernama sama. Target gunakan nama lain (mis. target).
+  if ('nim' in d || 'pin' in d || 'token' in d) throw new Error('Parameter nim/pin/token dicadangkan untuk autentikasi; pakai nama lain (mis. target).');
   const gen = NAV;
   const maxTry = NO_RETRY.includes(action) ? 1 : (action === 'scan' ? 5 : 3);
   const base = action === 'scan' ? 800 : 300;
@@ -326,7 +336,7 @@ const bln = k => { const p = String(k).split('-'); return new Date(+p[0], (+p[1]
 /* ---------- login ---------- */
 function loginView() {
   app.innerHTML = `<div class="center"><div class="login-shell"><div class="login-brand">${IMG('logo')}<h1>KPI Duta Kampus ULBI</h1><p>Sistem kinerja, kehadiran, dan penilaian Duta Kampus.</p></div>
-  <form class="card login-card" id="f"><div class="form-title"><h2>Selamat datang 👋</h2><p class="muted">Masuk menggunakan akun yang sudah terdaftar.</p></div>
+  <form class="card login-card" id="f"><div class="form-title"><h2>Selamat datang 👋</h2><p class="muted">${pending ? 'Masuk dulu — absensi dari QR yang barusan kamu scan akan langsung dicatat.' : 'Masuk menggunakan akun yang sudah terdaftar.'}</p></div>
   <label>NIM</label><input id="nim" inputmode="numeric" autocomplete="username" placeholder="Masukkan NIM" required>
   <label>PIN</label><div class="pw"><input id="pin" type="password" autocomplete="current-password" placeholder="Masukkan PIN" required><button type="button" id="eye" aria-pressed="false">Lihat</button></div>
   <label class="sel" style="font-weight:600;margin:0 0 17px"><input type="checkbox" id="rem"> Ingat saya di perangkat ini</label>
@@ -342,15 +352,16 @@ function loginView() {
       U = { nim, pin };
       const r = await api('login');
       U = { ...U, ...r };
-      localStorage.removeItem('u'); sessionStorage.removeItem('u');
-      if (remember) localStorage.setItem('rem', JSON.stringify({ nim, pin })); else localStorage.removeItem('rem');
-      (remember ? localStorage : sessionStorage).setItem('u', JSON.stringify(U));
+      sDel('localStorage', 'u'); sDel('sessionStorage', 'u');
+      if (remember) sSet('localStorage', 'rem', JSON.stringify({ nim, pin })); else sDel('localStorage', 'rem');
+      // Gagal menyimpan (mis. mode privat Safari) tidak boleh menggagalkan login.
+      if (!sSet(remember ? 'localStorage' : 'sessionStorage', 'u', JSON.stringify(U))) sSet('sessionStorage', 'u', JSON.stringify(U));
       start(false);
     } catch (err) { U = null; toast(err.message, 1); btn.disabled = false; btn.textContent = 'Masuk ke Dashboard'; busy = false; }
   };
 }
 function logout() {
-  localStorage.removeItem('u'); sessionStorage.removeItem('u');
+  sDel('localStorage', 'u'); sDel('sessionStorage', 'u');
   U = null; NAV++; stopScan();
   document.querySelectorAll('.modal').forEach(m => m.remove());
   loginView();
@@ -436,14 +447,43 @@ async function home() {
 let scanSubmitting = false, scanGen = 0;
 
 function scan() {
+  const noCam = !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  const warn = (IN_APP || noCam) ? `<div class="scan-help" style="margin-bottom:10px;border-color:rgba(245,130,32,.7)"><b>Perhatian:</b> browser ini (mis. di dalam WhatsApp/Instagram) sering memblokir kamera. Buka halaman ini di <b>${IS_IOS ? 'Safari' : 'Chrome'}</b>, atau pakai tombol <b>Scan dari foto</b> di bawah. <button class="btn sm ghost" id="copylink" style="margin-top:8px">Salin tautan</button></div>` : '';
   $('#main').innerHTML = `<section class="scan-page"><div class="scan-hero">
     <div class="scan-top"><div class="scan-eyebrow">ABSENSI DIGITAL</div><h1 class="scan-title">Scan QR untuk Hadir</h1><p class="scan-subtitle">Arahkan kamera ke QR absensi panitia. Pastikan seluruh kode masuk ke dalam kotak.</p></div>
+    ${warn}
     <div class="scan-camera"><div class="scan-camera-inner"><div id="reader"></div><div class="scan-corners" aria-hidden="true"></div><div class="scan-guide">Posisikan QR di tengah</div></div></div>
     <div class="scan-status"><span class="scan-dot"></span><span id="sm">Menyiapkan kamera…</span></div>
-    <div class="scan-help"><b>Tips cepat:</b> gunakan kamera belakang, cukup cahaya, dan tahan HP tetap stabil ±1–2 detik. Kalau kamera tidak mau menyala, buka halaman ini lewat Chrome/Safari (bukan browser di dalam WhatsApp/Instagram) atau scan QR dengan kamera bawaan HP.</div>
+    <div class="scan-help"><b>Tips cepat:</b> gunakan kamera belakang, cukup cahaya, dan tahan HP tetap stabil ±1–2 detik.${IS_IOS ? ' Di iPhone, izinkan akses kamera untuk Safari saat diminta.' : ''}</div>
     <button class="btn scan-retry" id="re" hidden>Coba kamera lagi</button>
+    <button class="btn ghost scan-photo" id="pic">📷 Scan dari foto</button>
+    <input type="file" id="qrfile" accept="image/*" capture="environment" hidden>
+    <div id="qr-tmp" style="position:absolute;left:-9999px;top:0;width:300px"></div>
   </div></section>`;
   $('#re').onclick = startScan;
+  const cl = $('#copylink');
+  if (cl) cl.onclick = async () => { try { await navigator.clipboard.writeText(location.origin + location.pathname); toast('Tautan disalin. Tempel di Safari/Chrome.'); } catch (e) { toast('Salin manual: ' + location.origin + location.pathname, 1); } };
+  $('#pic').onclick = () => { if (!scanSubmitting) $('#qrfile').click(); };
+  $('#qrfile').onchange = async ev => {
+    const f = ev.target.files && ev.target.files[0]; ev.target.value = '';
+    const status = $('#sm'), retry = $('#re');
+    if (!f || scanSubmitting || !status) return;
+    status.textContent = 'Membaca QR dari foto…';
+    try {
+      await loadScanner();
+      stopScan();
+      const h = new Html5Qrcode('qr-tmp');
+      const txt = await h.scanFile(f, false);
+      try { h.clear(); } catch (e) {}
+      const c = extractScanCode(txt);
+      if (!c) throw new Error('QR tidak dikenali');
+      scanSubmitting = true;
+      submitScan(c);
+    } catch (e) {
+      status.textContent = 'QR tidak terbaca dari foto. Pastikan seluruh QR terlihat jelas, lalu coba lagi.';
+      if (retry) { retry.hidden = false; retry.textContent = 'Nyalakan kamera lagi'; retry.onclick = startScan; }
+    }
+  };
   startScan();
 }
 
@@ -459,26 +499,42 @@ function extractScanCode(txt) {
   return raw.includes('.') ? raw : '';
 }
 
+function camErrorText(e) {
+  const s = String(e && (e.name ? e.name + ' ' + (e.message || '') : (e.message || e)) || '');
+  if (!window.isSecureContext) return 'Kamera hanya bisa dipakai lewat alamat https.';
+  if (/NotAllowed|Permission|denied/i.test(s)) return IS_IOS
+    ? 'Izin kamera ditolak. Ketuk "aA" di address bar Safari > Pengaturan Situs Web > Kamera > Izinkan, lalu muat ulang. Atau pakai "Scan dari foto".'
+    : 'Izin kamera ditolak. Izinkan akses kamera di pengaturan browser, lalu coba lagi.';
+  if (/NotFound|DevicesNotFound/i.test(s)) return 'Kamera tidak ditemukan di perangkat ini. Coba "Scan dari foto".';
+  if (/NotReadable|TrackStart|in use/i.test(s)) return 'Kamera sedang dipakai aplikasi lain. Tutup aplikasi itu lalu coba lagi.';
+  return 'Kamera belum siap (' + s.trim().slice(0, 70) + '). Coba lagi atau pakai "Scan dari foto".';
+}
+
 async function startScan() {
   if (scanSubmitting) return;
   const gen = ++scanGen;
   const retry = $('#re'), status = $('#sm');
   if (!retry || !status) return;
-  retry.hidden = true; status.textContent = 'Meminta izin kamera…';
+  retry.hidden = true;
+  if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
+    status.textContent = 'Browser ini tidak mengizinkan kamera. Buka di ' + (IS_IOS ? 'Safari' : 'Chrome') + ' atau pakai "Scan dari foto".';
+    return;
+  }
+  status.textContent = 'Meminta izin kamera…';
   try { await loadScanner(); } catch (e) { if (gen === scanGen) { status.textContent = e.message || 'Scanner tidak dapat dimuat.'; retry.hidden = false; } return; }
   if (gen !== scanGen) return;
+  const stopInst = async i => { if (!i) return; try { await i.stop(); } catch (e) {} try { i.clear(); } catch (e) {} if (scanner === i) scanner = null; };
   let inst = null;
   try {
-    if (scanner) { const old = scanner; scanner = null; try { await old.stop(); } catch (e) {} try { old.clear(); } catch (e) {} }
+    if (scanner) { const old = scanner; scanner = null; await stopInst(old); }
     const reader = $('#reader');
     if (!reader) return;
     const size = Math.min(280, Math.max(210, Math.floor(Math.min(reader.clientWidth || 300, 360) * .76)));
-    const cfg = {};
-    if (typeof Html5QrcodeSupportedFormats !== 'undefined') cfg.formatsToSupport = [Html5QrcodeSupportedFormats.QR_CODE];
-    cfg.experimentalFeatures = { useBarCodeDetectorIfSupported: true };
-    inst = new Html5Qrcode('reader', cfg);
-    scanner = inst;
-    await inst.start({ facingMode: 'environment' }, { fps: 8, qrbox: { width: size, height: size }, aspectRatio: 1 }, txt => {
+    const scanCfg = { fps: 10, qrbox: { width: size, height: size } };
+    if (!IS_IOS) scanCfg.aspectRatio = 1; // aspectRatio sering membuat start() gagal di iOS Safari
+    const libCfg = { experimentalFeatures: { useBarCodeDetectorIfSupported: true } };
+    if (typeof Html5QrcodeSupportedFormats !== 'undefined') libCfg.formatsToSupport = [Html5QrcodeSupportedFormats.QR_CODE];
+    const onDecode = txt => {
       if (scanSubmitting) return;
       const c = extractScanCode(txt);
       if (!c) return;
@@ -486,16 +542,31 @@ async function startScan() {
       status.textContent = 'QR terbaca • mencatat kehadiran…';
       stopScan();
       submitScan(c);
-    });
-    if (gen !== scanGen) { // pengguna sudah pindah halaman saat kamera baru menyala: matikan kamera
-      try { await inst.stop(); } catch (e) {} try { inst.clear(); } catch (e) {}
-      if (scanner === inst) scanner = null;
-      return;
+    };
+    let lastErr = null;
+    const tryStart = async cam => {
+      inst = new Html5Qrcode('reader', libCfg); scanner = inst;
+      try { await inst.start(cam, scanCfg, onDecode, () => {}); return true; }
+      catch (e) { lastErr = e; try { inst.clear(); } catch (x) {} if (scanner === inst) scanner = null; return false; }
+    };
+    let ok = await tryStart({ facingMode: 'environment' });
+    if (!ok && gen === scanGen && !/NotAllowed|Permission|denied/i.test(String(lastErr && (lastErr.name || lastErr.message || lastErr)))) {
+      // Cadangan: pilih kamera belakang lewat daftar perangkat (lebih andal di sebagian iPhone/Android)
+      try {
+        const cams = await Html5Qrcode.getCameras();
+        if (cams && cams.length) {
+          const back = cams.find(c => /back|rear|belakang|environment/i.test(c.label)) || cams[cams.length - 1];
+          ok = await tryStart(back.id);
+          if (!ok && cams.length > 1) ok = await tryStart(cams[0].id);
+        }
+      } catch (e) { lastErr = e; }
     }
+    if (!ok) throw lastErr || new Error('Kamera tidak dapat dibuka');
+    if (gen !== scanGen) { await stopInst(inst); return; } // pengguna sudah pindah halaman: matikan kamera
     status.textContent = 'Kamera aktif • siap scan';
   } catch (e) {
-    if (gen !== scanGen) { if (inst) { try { await inst.stop(); } catch (x) {} } return; }
-    status.textContent = 'Kamera belum siap. Izinkan akses kamera lalu coba lagi.';
+    if (gen !== scanGen) return;
+    status.textContent = camErrorText(e);
     retry.hidden = false;
   }
 }
@@ -627,9 +698,16 @@ async function manageAttendance(id, ev) {
       if (row && row.status === status) return;
       inflight++;
       try {
-        const r = await api('setAttendanceStatus', { id, nim, status });
-        if (row) { row.status = r.status; row.ts = r.status === 'belum' ? '' : new Date().toLocaleString('id-ID'); row.metode = r.status === 'belum' ? '' : (row.metode || 'manual'); }
-        toast(`${row ? row.nama : nim}: ${statusLabel[status]}`); draw();
+        // NIM anggota dikirim sebagai "target" (field "nim" milik request = NIM admin yang login)
+        const r = await api('setAttendanceStatus', { id, target: nim, status });
+        const z = s => String(s || '').replace(/^0+(?=\d)/, '');
+        if (z(r.nim) !== z(nim)) throw new Error('Server menyimpan NIM yang berbeda (' + r.nim + '). Pastikan Code.gs sudah di-deploy ke versi terbaru.');
+        toast(`${row ? row.nama : nim}: ${statusLabel[status]}`);
+        list = await api('attendanceManage', { id }); // tampilkan kondisi nyata dari database, bukan tebakan lokal
+        draw();
+      } catch (err) {
+        try { list = await api('attendanceManage', { id }); draw(); } catch (e2) {}
+        throw err;
       } finally { inflight--; }
     }));
   };
@@ -765,7 +843,7 @@ function memberForm(m) {
       await api('memberSave', { isNew, target: nim, nama: $('#mm').value, newPin: pin, divisi: $('#mv').value, role: $('#mr').value });
     } catch (err) { btn.disabled = false; throw err; }
     if (!isNew && nim === U.nim) {
-      if (pin) { U.pin = pin; if (localStorage.getItem('rem')) localStorage.setItem('rem', JSON.stringify({ nim: U.nim, pin })); }
+      if (pin) { U.pin = pin; try { if (localStorage.getItem('rem')) localStorage.setItem('rem', JSON.stringify({ nim: U.nim, pin })); } catch (e) {} }
       U.nama = $('#mm').value; persistU();
     }
     toast('Anggota berhasil disimpan'); mo.remove(); await anggota();
