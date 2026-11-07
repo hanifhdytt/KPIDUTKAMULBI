@@ -1,7 +1,7 @@
 const API='https://kpi-duta-api.dutakpi.workers.dev';
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const bln=()=>new Date(Date.now()+7*36e5).toISOString().slice(0,7);
-let T=localStorage.getItem('t')||'',U=JSON.parse(localStorage.getItem('u')||'null'),RL,AT='acara',stream,timer;
+let T=localStorage.getItem('t')||'',U=JSON.parse(localStorage.getItem('u')||'null'),RL,AT='dash',AY='',AM='',AM2='',AF='all',ML=[],stream,timer;
 const isA=()=>U&&/admin/.test(U.role);
 const toast=m=>{const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toast.i);toast.i=setTimeout(()=>t.hidden=true,3500)};
 const go=async f=>{try{await f()}catch(e){toast(e.message||'Terjadi kesalahan')}};
@@ -17,6 +17,22 @@ const ico=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-
 const MON=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'],fd=t=>{const m=/^(\d{4})-(\d\d)-(\d\d)/.exec(t||'');return m?`${m[3]} ${MON[+m[2]-1]} ${m[1]}`:esc(t)},ft=t=>fd(t)+(/\d\d:\d\d/.test(t||'')?', '+t.slice(11,16):'');
 const PH=(t,s='')=>`<div class="ph"><h1>${t}</h1><p>${s}</p></div>`;
 const tbl=(h,rows)=>rows.length?`<div class="tbl"><table><thead><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((c,i)=>`<td data-l="${h[i]}">${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:'<p class="mut">Belum ada data.</p>';
+
+/* ---- helper KPI: bulan, tingkat (senior/junior), grafik SVG & batang (tanpa library) ---- */
+const bs=k=>MON[+k.slice(5,7)-1],bn=k=>bs(k)+' '+k.slice(0,4),f1=n=>String(Math.round((+n||0)*10)/10);
+const TG={atas:'Tingkat Atas (senior)',bawah:'Tingkat Bawah (junior)'},TS={atas:'Atas',bawah:'Bawah'};
+const tgPill=t=>t?`<span class="pill tg-${t}">${TS[t]}</span>`:'';
+function lineChart(labels,series){const w=320,h=170,L=28,R=8,T=10,B=22,iw=w-L-R,ih=h-T-B,n=labels.length,X=i=>L+(n<2?iw/2:iw*i/(n-1)),Y=v=>T+ih-ih*Math.max(0,Math.min(100,v))/100;
+ let s=`<svg viewBox="0 0 ${w} ${h}" class="chart" role="img">`;
+ [0,50,100].forEach(g=>s+=`<line class="gl" x1="${L}" x2="${w-R}" y1="${Y(g)}" y2="${Y(g)}"/><text class="ax" x="${L-4}" y="${Y(g)+3}" text-anchor="end">${g}</text>`);
+ labels.forEach((l,i)=>s+=`<text class="ax" x="${X(i)}" y="${h-6}" text-anchor="middle">${esc(l)}</text>`);
+ series.forEach((se,k)=>{const pts=se.vals.map((v,i)=>v==null?null:[X(i),Y(v)]).filter(Boolean);
+  s+=`<polyline class="ln c${k}" fill="none" points="${pts.map(p=>p.join(',')).join(' ')}"/>`+pts.map(p=>`<circle class="dt c${k}" cx="${p[0]}" cy="${p[1]}" r="3.5"/>`).join('')});
+ return s+`</svg><div class="lg">${series.map((se,k)=>`<span><i class="sw c${k}"></i>${esc(se.name)}</span>`).join('')}</div>`}
+const bars=rows=>rows.length?`<div class="bars">${rows.map(r=>`<div class="bar"><span class="bl">${esc(r.label)}</span><div class="bt"><div class="bf ${r.tg||''}" style="width:${Math.max(0,Math.min(100,r.val))}%"></div></div><b>${f1(r.val)}</b></div>`).join('')}</div>`:'<p class="mut">Belum ada data.</p>';
+const avgOf=a=>a.length?a.reduce((n,x)=>n+x,0)/a.length:null;
+const yearSel=(id,v)=>{const y=+bln().slice(0,4);return`<select id="${id}" style="width:auto;margin:0">${[y,y-1,y-2].map(x=>`<option ${String(x)===String(v)?'selected':''}>${x}</option>`).join('')}</select>`};
+
 function render(){
  document.body.className=U?'in':'out';const nav=$('#nav');
  $('#who').innerHTML=U?`<span class="av">${esc((U.nama||'?')[0])}</span><div><b>${esc(U.nama)}</b><small>${esc(U.role)}</small></div><button class="btn ghost sm" data-a="out">Keluar</button>`:'';
@@ -28,10 +44,18 @@ function render(){
 }
 addEventListener('hashchange',()=>U&&render());
 
+/* ---- Beranda anggota: skor, penghargaan MOM/MOY, grafik kinerja pribadi ---- */
 async function home(){
- V('<p class="mut">Memuat…</p>');const d=await api('me'),l=d.latest,st=(k,v,x)=>`<div class="card stat"><small>${k}</small><b>${v}</b><i>${x}</i></div>`;
+ V('<p class="mut">Memuat…</p>');if(!AY)AY=bln().slice(0,4);
+ const d=await api('me',{year:AY}),l=d.latest,ms=d.months,st=(k,v,x)=>`<div class="card stat"><small>${k}</small><b>${v}</b><i>${x}</i></div>`;
+ const aw=[...d.momAwards.map(a=>`<div class="badge">🏅 <b>Member of the Month</b><small>${bn(a.bulan)} · ${TG[a.tingkat]}</small></div>`),...d.moyAwards.map(a=>`<div class="badge moy">🏆 <b>Member of the Year ${a.tahun}</b><small>${TG[a.tingkat]}</small></div>`)].join('');
  V(PH('Halo, '+esc(d.nama.split(' ')[0]),'Ringkasan KPI dan kehadiranmu')
- +(l?`<div class="stats">${st('Skor KPI',l.total,'Bulan '+l.bulan)}${st('Kehadiran',l.hadir+'/'+l.acara,l.pct+'%')}${st('Keaktifan',l.aktif,'dari 100')}${st('Eksekusi',l.eksekusi,'dari 100')}</div>`:'<div class="card mut">Belum ada data KPI.</div>')
+ +`<div class="row" style="margin-bottom:14px"><span>${esc(d.divisi||'')} ${tgPill(d.tingkat)}</span>${yearSel('yr',AY)}</div>`
+ +(aw?`<div class="card">${aw}</div>`:'')
+ +(l?`<div class="stats">${st('Skor KPI',f1(l.total),'Bulan '+bn(l.bulan)+(l.rank?' · peringkat '+l.rank+'/'+l.dari:''))}${st('Kehadiran',l.hadir+'/'+l.acara,l.pct+'%')}${st('Keaktifan',f1(l.aktif),'dari 100')}${st('Eksekusi',f1(l.eksekusi),'dari 100')}</div>`:'<div class="card mut">Belum ada data KPI.</div>')
+ +(l&&l.catatan?`<div class="card" style="margin-top:12px"><small>Catatan admin · ${bn(l.bulan)}</small><p style="margin:4px 0 0">${esc(l.catatan)}</p></div>`:'')
+ +(ms.length?`<h3 class="sh">Grafik kinerja saya</h3><div class="g2c"><div class="card"><small>Skor per bulan</small>${lineChart(ms.map(m=>bs(m.bulan)),[{name:'Skor saya',vals:ms.map(m=>m.total>0?m.total:null)},{name:'Rata-rata anggota',vals:ms.map(m=>m.rata>0?m.rata:null)}])}${d.tahun?`<small style="margin-top:8px">Rata-rata ${AY}: <b>${f1(d.tahun.avg)}</b> · peringkat ${d.tahun.rank} dari ${d.tahun.dari}</small>`:''}</div>`
+  +(l?`<div class="card"><small>Komponen ${bn(l.bulan)}</small>${bars([{label:'Kehadiran',val:l.pct},{label:'Keaktifan',val:l.aktif},{label:'Eksekusi',val:l.eksekusi}])}</div>`:'')+'</div>':'')
  +'<h3 class="sh">Riwayat absensi</h3>'+tbl(['Acara','Waktu','Metode'],d.attendance.map(a=>[esc(a.nama),ft(a.ts),`<span class="pill">${esc(a.metode).toUpperCase()}</span>`])));
 }
 
@@ -64,15 +88,70 @@ async function laporan(){
  f.onsubmit=e=>{e.preventDefault();go(async()=>{await api('laporanSave',Object.fromEntries(new FormData(f)));toast('Laporan tersimpan');laporan()})}}
 
 /* ---- Admin ---- */
+const ATABS=()=>[['dash','Dashboard'],['nilai','Penilaian'],['anggota','Anggota'],['acara','Acara'],['laporan','Laporan'],...(U.role==='superadmin'?[['follow','Tindak lanjut']]:[])];
 function admin(){
  if(!isA())return;
- V(PH('Admin','Kelola acara absensi dan laporan')+`<div class="seg">${[['acara','Acara'],['laporan','Laporan']].map(([k,n])=>`<button class="btn ${k===AT?'':'ghost'}" data-a="atab" data-t="${k}">${n}</button>`).join('')}</div><div id="av"></div>`);
- return AT==='acara'?aAcara():aLaporan()}
+ V(PH('Admin','Dashboard KPI, penilaian, anggota, acara, dan laporan')+`<div class="seg">${ATABS().map(([k,n])=>`<button class="btn ${k===AT?'':'ghost'}" data-a="atab" data-t="${k}">${n}</button>`).join('')}</div><div id="av"></div>`);
+ return({dash:aDash,nilai:aNilai,anggota:aAnggota,acara:aAcara,laporan:aLaporan,follow:aFollow}[AT]||aDash)()}
+
+/* -- Dashboard: MOM/MOY per tingkat + grafik seluruh anggota -- */
+function awCard(jenis,periode,aw,t){const w=aw[t];let b;
+ if(!w)b='<small>Belum ada skor di tingkat ini</small>';
+ else if(w.seri)b=`<small style="margin-bottom:6px">Seri penuh (skor, kehadiran, eksekusi sama). Pilih pemenang:</small><select data-pick="${jenis}|${periode}|${t}"><option value="">Pilih…</option>${w.kandidat.map(c=>`<option value="${esc(c.nim)}">${esc(c.nama)}</option>`).join('')}</select>`;
+ else b=`<b class="wn">${esc(w.nama)}</b><small>${esc(w.divisi)} · skor ${f1(w.total)} · hadir ${w.pct}% · eksekusi ${f1(w.eksekusi)}${w.manual?' · dipilih admin':''}</small>`+(w.manual?`<button class="btn ghost sm" style="margin-top:8px" data-a="unpick" data-k="${jenis}|${periode}|${t}">Batalkan pilihan</button>`:'');
+ return `<div class="card aw ${t}"><small>${TG[t]}</small>${b}</div>`}
+const awBlock=(title,jenis,periode,aw)=>`<div class="row"><h3 class="sh">${title}</h3><span class="pill ${aw.final?'open':''}">${aw.final?'Resmi':'Sementara'}</span></div><div class="g2c">${awCard(jenis,periode,aw,'atas')}${awCard(jenis,periode,aw,'bawah')}</div>`;
+async function aDash(){
+ if(!AY)AY=bln().slice(0,4);
+ const d=await api('dashboard',{year:AY}),keys=Object.keys(d.stats).sort();
+ if(!keys.includes(AM))AM=keys.includes(bln())?bln():(keys[keys.length-1]||'');
+ const ok=r=>r.tingkat&&(AF==='all'||r.tingkat===AF),list=(d.stats[AM]||[]).filter(ok),yl=d.yearly.filter(ok);
+ const tr=t=>keys.map(k=>{const a=avgOf((d.stats[k]||[]).filter(r=>r.tingkat===t&&r.total>0).map(r=>r.total));return a==null?null:+a.toFixed(1)});
+ $('#av').innerHTML=`<div class="row" style="gap:12px;justify-content:flex-start"><label style="margin:0">Tahun${yearSel('ay',AY)}</label><label style="margin:0">Bulan<select id="am" style="width:auto">${keys.map(k=>`<option value="${k}" ${k===AM?'selected':''}>${bn(k)}</option>`).join('')||'<option value="">-</option>'}</select></label></div>`
+ +(AM&&d.mom[AM]?awBlock('Member of the Month · '+bn(AM),'mom',AM,d.mom[AM]):'<p class="mut">Belum ada data bulan ini.</p>')
+ +awBlock('Member of the Year · '+AY,'moy',AY,d.moy)
+ +`<h3 class="sh">Grafik seluruh anggota</h3><div class="seg">${[['all','Semua'],['atas','Atas'],['bawah','Bawah']].map(([k,n])=>`<button class="btn ${k===AF?'':'ghost'}" data-a="af" data-f="${k}">${n}</button>`).join('')}</div>`
+ +`<div class="g2c"><div class="card"><small>Skor KPI ${AM?bn(AM):''}</small>${bars(list.map(r=>({label:r.nama,val:r.total,tg:r.tingkat})))}</div>`
+ +`<div class="card"><small>Rata-rata skor ${AY} (dasar MOY)</small>${bars(yl.map(r=>({label:r.nama,val:r.avg,tg:r.tingkat})))}</div></div>`
+ +(keys.length?`<div class="card"><small>Tren rata-rata skor per bulan</small>${lineChart(keys.map(bs),[{name:'Tingkat atas',vals:tr('atas')},{name:'Tingkat bawah',vals:tr('bawah')}])}</div>`:'')
+ +`<button class="btn ghost" style="width:auto" data-a="csv">Unduh rekap ${AY} (CSV)</button>`}
+
+/* -- Penilaian anggota -- */
+const calcTot=(pct,acara,k,e)=>acara>0?pct*.4+k*.3+e*.3:(k*.3+e*.3)/.6;
+async function aNilai(){
+ if(!AM2)AM2=bln();
+ const [ml,sc,d]=await Promise.all([api('memberList'),api('scores',{bulan:AM2}),api('dashboard',{year:AM2.slice(0,4)})]);
+ const st={},sm={};(d.stats[AM2]||[]).forEach(r=>st[r.nim]=r);sc.forEach(r=>sm[r.nim]=r);
+ $('#av').innerHTML=`<div class="card"><div class="cols" style="gap:12px"><label style="margin:0">Bulan penilaian<input type="month" id="nm" value="${AM2}"></label><label style="margin:0">Cari anggota<input id="nq" placeholder="Nama anggota…"></label></div><p class="mut" style="margin:10px 0 0">Skor = kehadiran 40% + keaktifan 30% + eksekusi 30%. Kehadiran dihitung otomatis dari absensi.</p></div>`
+ +'<div class="g3c">'+ml.filter(m=>m.nim!=='00000000').map(m=>{const s=st[m.nim]||{pct:0,hadir:0,acara:0},v=sm[m.nim]||{keaktifan:'',eksekusi:'',catatan:''};
+  const t=calcTot(s.pct,s.acara,+v.keaktifan||0,+v.eksekusi||0);
+  return `<div class="card nr" data-nim="${esc(m.nim)}" data-pct="${s.pct}" data-acara="${s.acara}" data-q="${esc(m.nama.toLowerCase())}"><div class="row"><b>${esc(m.nama)}</b>${tgPill(m.tingkat)}</div><small>${esc(m.divisi)} · hadir ${s.hadir}/${s.acara} (${s.pct}%)</small>`
+  +`<div class="g2" style="margin-top:10px"><label>Keaktifan<input type="number" inputmode="decimal" min="0" max="100" name="k" value="${v.keaktifan}"></label><label>Eksekusi<input type="number" inputmode="decimal" min="0" max="100" name="e" value="${v.eksekusi}"></label></div><label>Catatan<input name="c" maxlength="300" value="${esc(v.catatan)}"></label>`
+  +`<div class="row"><span>Skor: <b class="tot">${f1(t)}</b></span><button class="btn sm" data-a="sc">Simpan</button></div></div>`}).join('')+'</div>'}
+
+/* -- Anggota: tambah / ubah / hapus -- */
+const tgPreview=(nim,list)=>{const a=String(nim).slice(2,4);if(!/^\d{4,}$/.test(nim)||!/^\d\d$/.test(a)||a==='00')return'Tingkat ditentukan dari angkatan di NIM (contoh 0325xxxx = angkatan 25).';
+ const mn=list.map(m=>String(m.nim).slice(2,4)).filter(x=>/^\d\d$/.test(x)&&x!=='00').sort()[0];return`Angkatan ${a} → ${a===mn?TG.atas:TG.bawah}`};
+const roleOpts=cur=>['member','admin',...(U.role==='superadmin'?['superadmin']:[])].map(r=>`<option ${r===cur?'selected':''}>${r}</option>`).join('');
+async function aAnggota(){
+ ML=await api('memberList');
+ $('#av').innerHTML=`<div class="cols"><form id="mf" class="card"><h3 class="sh" style="margin-top:0">Tambah anggota</h3><label>NIM<input name="target" inputmode="numeric" pattern="\\d{4,20}" required></label><p id="tgh" class="mut" style="margin:-6px 0 14px;font-size:.82rem">${tgPreview('',ML)}</p><label>Nama<input name="nama" required></label><label>Divisi<input name="divisi"></label><label>Role<select name="role">${roleOpts('member')}</select></label><label>PIN awal<input name="newPin" inputmode="numeric" minlength="4" required></label><button class="btn">Tambah anggota</button></form>`
+ +`<div><input id="mq" placeholder="Cari nama / NIM…" style="margin:0 0 12px"><p class="mut" style="margin:0 0 8px">${ML.length} anggota</p><div id="ml">`
+ +tbl(['Nama','NIM','Divisi','Tingkat','Role','Aksi'],ML.map(m=>[esc(m.nama),esc(m.nim),esc(m.divisi),tgPill(m.tingkat)||'-',`<span class="pill">${esc(m.role)}</span>`,`<button class="btn ghost sm" data-a="medit" data-n="${esc(m.nim)}">Ubah</button> <button class="btn ghost sm" data-a="mdel" data-n="${esc(m.nim)}">Hapus</button>`]))+'</div></div></div>';
+ $('#mf').onsubmit=e=>{e.preventDefault();go(async()=>{await api('memberSave',{...Object.fromEntries(new FormData(e.target)),isNew:true});toast('Anggota ditambahkan');aAnggota()})}}
+
+/* -- Tindak lanjut (Super Admin) -- */
+async function aFollow(){
+ if(!AM2)AM2=bln();const d=await api('followups',{bulan:AM2});
+ $('#av').innerHTML=`<div class="card"><label style="margin:0">Bulan<input type="month" id="fm" value="${AM2}"></label><p class="mut" style="margin:10px 0 0">Anggota dengan rata-rata keaktifan dan eksekusi di bawah ${d.threshold} · ${d.total} anggota</p></div>`
+ +tbl(['Nama','Divisi','Keaktifan','Eksekusi','Rata-rata','Catatan'],d.rows.map(r=>[esc(r.nama),esc(r.divisi),f1(r.keaktifan),f1(r.eksekusi),`<span class="pill open">${r.avg}</span>`,esc(r.catatan||'-')]))}
+
+/* -- Acara -- */
 async function aAcara(){
- const ev=await api('events'),b=(a,id,t,x='')=>`<button class="btn ${x} sm" data-a="${a}" data-id="${id}"`;
+ const ev=await api('events');
  $('#av').innerHTML=`<div class="cols"><form id="ef" class="card"><h3 class="sh" style="margin-top:0">Acara baru</h3><label>Nama<input name="nama" required></label><label>Tanggal<input type="date" name="tanggal" required></label><button class="btn">Buat acara</button></form><div>`
  +tbl(['Acara','Tanggal','Status','Hadir','Aksi'],ev.slice().reverse().map(e=>[`<b>${esc(e.nama)}</b>`,fd(e.tanggal),`<span class="pill ${e.status}">${e.status}</span>`,e.hadir,
-  (e.status==='open'?`<button class="btn sm" data-a="qr" data-id="${e.id}">QR</button> <button class="btn ghost sm" data-a="st" data-id="${e.id}" data-s="closed">Tutup</button>`:`<button class="btn sm" data-a="st" data-id="${e.id}" data-s="open">Buka</button>`)+` <button class="btn ghost sm" data-a="evdel" data-id="${e.id}">Hapus</button>`]))+'</div></div>';
+  (e.status==='open'?`<button class="btn sm" data-a="qr" data-id="${e.id}">QR</button> <button class="btn ghost sm" data-a="st" data-id="${e.id}" data-s="closed">Tutup</button>`:`<button class="btn sm" data-a="st" data-id="${e.id}" data-s="open">Buka</button>`)+` <button class="btn ghost sm" data-a="att" data-id="${e.id}">Absensi</button> <button class="btn ghost sm" data-a="evdel" data-id="${e.id}">Hapus</button>`]))+'</div></div>';
  $('#ef').onsubmit=e=>{e.preventDefault();go(async()=>{await api('createEvent',Object.fromEntries(new FormData(e.target)));aAcara()})}}
 async function aLaporan(){
  const dls=(await api('laporanMine')).deadlines,opt='<option value="divisi">Laporan Divisi</option><option value="mentoring">Laporan Mentoring</option>';
@@ -86,16 +165,46 @@ async function aLaporan(){
   +(d.belum.length?`<div class="card"><b>Belum mengumpulkan</b><small>${d.belum.map(b=>esc(b.nama)).join(', ')}</small></div>`:'')})}}
 
 /* ---- aksi klik ---- */
+const csvCell=v=>{let t=String(v??'');if(/^[=+\-@]/.test(t))t="'"+t;return /[",\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t};
+async function exportCsv(){
+ const d=await api('exportData',{bulan:'all',year:AY}),h=['Bulan','Peringkat','Nama','Divisi','Tingkat','Hadir','Acara','Kehadiran %','Keaktifan','Eksekusi','Skor','MOM','Catatan'];
+ const lines=[h,...d.rows.map(r=>[r.bulan,r.rank,r.nama,r.divisi,r.tingkat,r.hadir,r.acara,r.pct,r.aktif,r.eksekusi,r.total,r.mom?'MOM':'',r.catatan])];
+ lines.push([],['MOY '+d.year+' Tingkat Atas',d.moy.atas||'-'],['MOY '+d.year+' Tingkat Bawah',d.moy.bawah||'-']);
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+lines.map(l=>l.map(csvCell).join(',')).join('\n')],{type:'text/csv'}));a.download='rekap-kpi-'+d.year+'.csv';document.body.appendChild(a);a.click();a.remove()}
+const dlgOpen=h=>{$('#dlg').innerHTML=h;$('#dlg').showModal()};
 document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,id=b.dataset.id;go(async()=>{
  if(a==='out'){await api('logout').catch(()=>{});out()}
  else if(a==='cam')await startScan();
  else if(a==='edit'){const r=RL.reports.find(x=>x.id==id),f=$('#lf');f.jenis.value=r.jenis;f.periode.value=r.periode;f.judul.value=r.judul;f.isi.value=r.isi;f.onchange();f.scrollIntoView()}
  else if(a==='delr'){if(confirm('Hapus laporan ini?')){await api('laporanDelete',{id});laporan()}}
  else if(a==='atab'){AT=b.dataset.t;admin()}
+ else if(a==='af'){AF=b.dataset.f;aDash()}
+ else if(a==='csv')await exportCsv();
+ else if(a==='unpick'){const[j,p,t]=b.dataset.k.split('|');await api('awardPick',{jenis:j,periode:p,tingkat:t,target:''});aDash()}
+ else if(a==='sc'){const r=b.closest('.nr');await api('score',{bulan:AM2,target:r.dataset.nim,keaktifan:r.querySelector('[name=k]').value||0,eksekusi:r.querySelector('[name=e]').value||0,catatan:r.querySelector('[name=c]').value});toast('Nilai tersimpan')}
+ else if(a==='medit'){const m=ML.find(x=>x.nim===b.dataset.n);dlgOpen(`<h3 class="sh" style="margin-top:0">Ubah anggota</h3><form id="ef2"><p class="mut" style="margin:0 0 12px">NIM ${esc(m.nim)} · ${m.tingkat?TG[m.tingkat]:'tanpa tingkat'}</p><label>Nama<input name="nama" value="${esc(m.nama)}" required></label><label>Divisi<input name="divisi" value="${esc(m.divisi)}"></label><label>Role<select name="role">${roleOpts(m.role)}</select></label><label>PIN baru (kosongkan jika tidak diganti)<input name="newPin" inputmode="numeric" minlength="4"></label><button class="btn">Simpan</button></form><button class="btn ghost" style="margin-top:8px" onclick="this.closest('dialog').close()">Batal</button>`);
+  $('#ef2').onsubmit=ev=>{ev.preventDefault();go(async()=>{await api('memberSave',{...Object.fromEntries(new FormData(ev.target)),target:m.nim});$('#dlg').close();toast('Anggota diperbarui');aAnggota()})}}
+ else if(a==='mdel'){const m=ML.find(x=>x.nim===b.dataset.n);if(confirm('Hapus '+m.nama+'? Absensi, nilai, dan laporannya ikut terhapus permanen.')){await api('memberDelete',{target:m.nim});toast('Anggota dihapus');aAnggota()}}
+ else if(a==='att'){const r=await api('attendanceManage',{id});dlgOpen(`<h3 class="sh" style="margin-top:0">Kelola absensi</h3><div class="lst">${r.filter(x=>x.nim!=='00000000').map(x=>`<div class="row" style="margin-bottom:8px"><span>${esc(x.nama)}</span><select data-att="${esc(id)}|${esc(x.nim)}" style="width:auto;margin:0">${['belum','hadir','izin','sakit'].map(s=>`<option ${s===x.status?'selected':''}>${s}</option>`).join('')}</select></div>`).join('')}</div><button class="btn" style="margin-top:8px" onclick="this.closest('dialog').close()">Tutup</button>`)}
  else if(a==='st'){await api('setStatus',{id,status:b.dataset.s});aAcara()}
  else if(a==='evdel'){if(confirm('Hapus acara beserta absensinya?')){await api('deleteEvents',{ids:[id]});aAcara()}}
  else if(a==='dldel'){await api('deadlineDelete',{periode:b.dataset.p});aLaporan()}
  else if(a==='qr'){const d=await api('qr',{id}),q=qrcode(0,'M');q.addData(JSON.stringify({e:d.id,s:d.secret}));q.make();
-  $('#dlg').innerHTML=q.createSvgTag({scalable:true,margin:2})+'<p class="note">Minta anggota scan QR ini</p><button class="btn" onclick="this.closest(\'dialog\').close()">Tutup</button>';$('#dlg').showModal()}
+  dlgOpen('<div style="text-align:center">'+q.createSvgTag({scalable:true,margin:2})+'<p class="note">Minta anggota scan QR ini</p></div><button class="btn" onclick="this.closest(\'dialog\').close()">Tutup</button>')}
 })});
+document.addEventListener('change',e=>{const t=e.target;go(async()=>{
+ if(t.id==='yr'){AY=t.value;home()}
+ else if(t.id==='ay'){AY=t.value;AM='';aDash()}
+ else if(t.id==='am'){AM=t.value;aDash()}
+ else if(t.id==='nm'&&t.value){AM2=t.value;aNilai()}
+ else if(t.id==='fm'&&t.value){AM2=t.value;aFollow()}
+ else if(t.dataset.pick){if(!t.value)return;const[j,p,g]=t.dataset.pick.split('|');await api('awardPick',{jenis:j,periode:p,tingkat:g,target:t.value});toast('Pemenang dipilih');aDash()}
+ else if(t.dataset.att){const[ev,nim]=t.dataset.att.split('|');await api('setAttendanceStatus',{id:ev,target:nim,status:t.value});toast('Absensi diperbarui')}
+})});
+document.addEventListener('input',e=>{const t=e.target;
+ if(t.closest('.nr')&&(t.name==='k'||t.name==='e')){const r=t.closest('.nr'),v=n=>Math.max(0,Math.min(100,+r.querySelector('[name='+n+']').value||0));r.querySelector('.tot').textContent=f1(calcTot(+r.dataset.pct,+r.dataset.acara,v('k'),v('e')))}
+ else if(t.id==='nq'){const q=t.value.toLowerCase().trim();document.querySelectorAll('.nr').forEach(c=>c.hidden=!!q&&!c.dataset.q.includes(q))}
+ else if(t.id==='mq'){const q=t.value.toLowerCase().trim();document.querySelectorAll('#ml tbody tr').forEach(r=>r.hidden=!!q&&!r.textContent.toLowerCase().includes(q))}
+ else if(t.form&&t.form.id==='mf'&&t.name==='target'){$('#tgh').textContent=tgPreview(t.value.trim(),ML)}});
+$('#dlg').addEventListener('close',()=>{if(U&&isA()&&AT==='acara'&&location.hash==='#admin'&&$('#av'))go(aAcara)});
 render();
