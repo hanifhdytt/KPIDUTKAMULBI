@@ -1,4 +1,4 @@
-const API='https://kpi-duta-api.dutakpi.workers.dev'; // <- isi URL Worker kamu
+const API='https://kpi-duta-api.dutakpi.workers.dev';
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const bln=()=>new Date(Date.now()+7*36e5).toISOString().slice(0,7);
 let T=localStorage.getItem('t')||'',U=JSON.parse(localStorage.getItem('u')||'null'),RL,AT='acara',stream,timer;
@@ -12,24 +12,30 @@ async function api(a,p={}){
  if(!j.ok)throw Error(j.error);return j.data}
 const out=()=>{stopScan();T='';U=null;localStorage.clear();render()};
 const V=h=>$('#v').innerHTML=h;
+const IC={home:'M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z',scan:'M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M4 12h16',laporan:'M7 3h8l4 4v14H7zM14 3v5h5M10 13h6M10 17h6',admin:'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z'};
+const ico=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${IC[k]}"/></svg>`;
+const PH=(t,s='')=>`<div class="ph"><h1>${t}</h1><p>${s}</p></div>`;
+const tbl=(h,rows)=>rows.length?`<div class="tbl"><table><thead><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((c,i)=>`<td data-l="${h[i]}">${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:'<p class="mut">Belum ada data.</p>';
 function render(){
- const nav=$('#nav');
- if(!U){nav.hidden=true;return V(`<h2>Masuk</h2><form id="lg" class="card"><label>NIM<input name="nim" inputmode="numeric" autocomplete="username" required></label><label>PIN<input name="pin" type="password" inputmode="numeric" autocomplete="current-password" required></label><button class="btn">Masuk</button></form>`),
+ document.body.className=U?'in':'out';const nav=$('#nav');
+ $('#who').innerHTML=U?`<span class="av">${esc((U.nama||'?')[0])}</span><div><b>${esc(U.nama)}</b><small>${esc(U.role)}</small></div><button class="btn ghost sm" data-a="out">Keluar</button>`:'';
+ if(!U){nav.innerHTML='';return V(`<div class="auth card"><img class="logo" src="logo.png" alt="" onerror="this.style.display='none'"><h1>Masuk</h1><p class="mut">KPI Duta Kampus ULBI</p><form id="lg"><label>NIM<input name="nim" inputmode="numeric" autocomplete="username" required></label><label>PIN<input name="pin" type="password" inputmode="numeric" autocomplete="current-password" required></label><button class="btn">Masuk</button></form></div>`),
   $('#lg').onsubmit=e=>{e.preventDefault();go(async()=>{const d=await api('login',Object.fromEntries(new FormData(e.target)));T=d.token;U={nim:d.nim,nama:d.nama,role:d.role,divisi:d.divisi};localStorage.setItem('t',T);localStorage.setItem('u',JSON.stringify(U));render()})}}
  const tabs=[['home','Beranda'],['scan','Scan'],['laporan','Laporan'],...(isA()?[['admin','Admin']]:[])],h=location.hash.slice(1)||'home';
- nav.hidden=false;nav.innerHTML=tabs.map(([k,n])=>`<a href="#${k}" class="${k===h?'on':''}">${n}</a>`).join('');
+ nav.innerHTML=tabs.map(([k,n])=>`<a href="#${k}" class="${k===h?'on':''}">${ico(k)}${n}</a>`).join('');
  stopScan();go(()=>({home,scan,laporan,admin}[h]||home)());
 }
 addEventListener('hashchange',()=>U&&render());
 
 async function home(){
- V('<p class="mut">Memuat…</p>');const d=await api('me'),l=d.latest;
- V(`<h2>Halo, ${esc(d.nama)}</h2>`+(l?`<div class="card hero"><small>Bulan ${l.bulan}</small><b>${l.total}</b>skor KPI<div class="g3"><i>Hadir<br><b>${l.hadir}/${l.acara}</b></i><i>Keaktifan<br><b>${l.aktif}</b></i><i>Eksekusi<br><b>${l.eksekusi}</b></i></div></div>`:'<div class="card">Belum ada data KPI.</div>')
- +'<h3>Riwayat absensi</h3>'+(d.attendance.map(a=>`<div class="card"><b>${esc(a.nama)}</b><small>${esc(a.ts)} · ${esc(a.metode)}</small></div>`).join('')||'<p class="mut">Belum ada.</p>')+'<button class="btn ghost" data-a="out">Keluar</button>');
+ V('<p class="mut">Memuat…</p>');const d=await api('me'),l=d.latest,st=(k,v,x)=>`<div class="card stat"><small>${k}</small><b>${v}</b><i>${x}</i></div>`;
+ V(PH('Halo, '+esc(d.nama.split(' ')[0]),'Ringkasan KPI dan kehadiranmu')
+ +(l?`<div class="stats">${st('Skor KPI',l.total,'Bulan '+l.bulan)}${st('Kehadiran',l.hadir+'/'+l.acara,l.pct+'%')}${st('Keaktifan',l.aktif,'dari 100')}${st('Eksekusi',l.eksekusi,'dari 100')}</div>`:'<div class="card mut">Belum ada data KPI.</div>')
+ +'<h3 class="sh">Riwayat absensi</h3>'+tbl(['Acara','Waktu','Metode'],d.attendance.map(a=>[esc(a.nama),esc(a.ts),esc(a.metode)])));
 }
 
 /* ---- Scanner (iOS-safe: tombol memulai kamera, playsinline+muted, jsQR sebagai cadangan) ---- */
-function scan(){V(`<h2>Scan absensi</h2><video id="cam" playsinline muted autoplay hidden></video><button class="btn" data-a="cam">Buka kamera</button><p class="note" style="margin:12px 0">Kamera tidak jalan? Ambil foto QR:</p><label class="btn ghost" style="display:flex;align-items:center;justify-content:center">Foto QR<input type="file" accept="image/*" capture="environment" id="qf" hidden></label>`);
+function scan(){V(''+PH('Scan absensi','Arahkan kamera ke QR acara')+'<video id="cam" playsinline muted autoplay hidden></video><button class="btn" data-a="cam">Buka kamera</button><p class="note" style="margin:12px 0">Kamera tidak jalan? Ambil foto QR:</p><label class="btn ghost" style="display:flex;align-items:center;justify-content:center">Foto QR<input type="file" accept="image/*" capture="environment" id="qf" hidden></label>');
  $('#qf').onchange=e=>go(async()=>{const f=e.target.files[0];if(!f)return;const im=await createImageBitmap(f),c=document.createElement('canvas'),s=Math.min(1,900/Math.max(im.width,im.height));c.width=im.width*s;c.height=im.height*s;const x=c.getContext('2d');x.drawImage(im,0,0,c.width,c.height);const r=jsQR(x.getImageData(0,0,c.width,c.height).data,c.width,c.height);if(!r)throw Error('QR tidak terbaca, coba lagi lebih dekat');await submitScan(r.data)})}
 async function startScan(){
  const v=$('#cam');
@@ -48,8 +54,8 @@ async function submitScan(raw){
 /* ---- Laporan ---- */
 async function laporan(){
  RL=await api('laporanMine');
- V(`<h2>Laporan</h2><form id="lf" class="card"><label>Jenis laporan<select name="jenis"><option value="divisi">Laporan Divisi</option><option value="mentoring">Laporan Mentoring</option></select></label><label>Periode<input type="month" name="periode" value="${bln()}" required></label><p id="dl" class="note" style="margin-bottom:12px"></p><label>Judul<input name="judul" maxlength="150" required></label><label>Isi<textarea name="isi" rows="8" maxlength="8000" required></textarea></label><button class="btn">Kirim laporan</button></form><h3>Laporan saya</h3>`
- +(RL.reports.map(r=>`<div class="card"><b>${esc(r.judul)}</b><small>${r.jenis} · ${r.periode}</small><p>${esc(r.isi.slice(0,160))}</p><button class="btn ghost sm" data-a="edit" data-id="${r.id}">Ubah</button> <button class="btn ghost sm" data-a="delr" data-id="${r.id}">Hapus</button></div>`).join('')||'<p class="mut">Belum ada laporan.</p>'));
+ V(`${PH('Laporan','Kirim laporan divisi atau mentoring')}<div class="cols"><form id="lf" class="card"><label>Jenis laporan<select name="jenis"><option value="divisi">Laporan Divisi</option><option value="mentoring">Laporan Mentoring</option></select></label><label>Periode<input type="month" name="periode" value="${bln()}" required></label><p id="dl" class="note" style="margin-bottom:12px"></p><label>Judul<input name="judul" maxlength="150" required></label><label>Isi<textarea name="isi" rows="8" maxlength="8000" required></textarea></label><button class="btn">Kirim laporan</button></form><div><h3 class="sh" style="margin-top:0">Laporan saya</h3>`
+ +(RL.reports.map(r=>`<div class="card"><b>${esc(r.judul)}</b><small>${r.jenis} · ${r.periode}</small><p>${esc(r.isi.slice(0,160))}</p><button class="btn ghost sm" data-a="edit" data-id="${r.id}">Ubah</button> <button class="btn ghost sm" data-a="delr" data-id="${r.id}">Hapus</button></div>`).join('')||'<p class="mut">Belum ada laporan.</p>')+'</div></div>');
  const f=$('#lf'),upd=()=>{const m=f.jenis.value==='mentoring',d=RL.deadlines.find(x=>x.periode===f.periode.value);
   $('#dl').textContent=m?(d?(d.terbuka?'Batas pengumpulan: ':'Sudah ditutup. Batas: ')+d.deadline+' WIB':'Admin belum membuka laporan mentoring periode ini'):'';
   f.querySelector('.btn').disabled=m&&!(d&&d.terbuka)};
@@ -62,11 +68,10 @@ function admin(){
  V(`<div class="seg">${[['acara','Acara'],['laporan','Laporan']].map(([k,n])=>`<button class="btn ${k===AT?'':'ghost'}" data-a="atab" data-t="${k}">${n}</button>`).join('')}</div><div id="av"></div>`);
  return AT==='acara'?aAcara():aLaporan()}
 async function aAcara(){
- const ev=await api('events');
- $('#av').innerHTML=`<form id="ef" class="card"><h3 style="margin-top:0">Acara baru</h3><label>Nama<input name="nama" required></label><label>Tanggal<input type="date" name="tanggal" required></label><button class="btn">Buat acara</button></form>`
- +ev.slice().reverse().map(e=>`<div class="card"><div class="row"><b>${esc(e.nama)}</b><span class="pill ${e.status}">${e.status}</span></div><small>${e.tanggal} · ${e.hadir} hadir</small><div class="row" style="margin-top:10px;flex-wrap:wrap;justify-content:flex-start">`
- +(e.status==='open'?`<button class="btn sm" data-a="qr" data-id="${e.id}">Tampilkan QR</button><button class="btn ghost sm" data-a="st" data-id="${e.id}" data-s="closed">Tutup</button>`:`<button class="btn sm" data-a="st" data-id="${e.id}" data-s="open">Buka absensi</button>`)
- +`<button class="btn ghost sm" data-a="evdel" data-id="${e.id}">Hapus</button></div></div>`).join('');
+ const ev=await api('events'),b=(a,id,t,x='')=>`<button class="btn ${x} sm" data-a="${a}" data-id="${id}"`;
+ $('#av').innerHTML=`<div class="cols"><form id="ef" class="card"><h3 class="sh" style="margin-top:0">Acara baru</h3><label>Nama<input name="nama" required></label><label>Tanggal<input type="date" name="tanggal" required></label><button class="btn">Buat acara</button></form><div>`
+ +tbl(['Acara','Tanggal','Status','Hadir','Aksi'],ev.slice().reverse().map(e=>[`<b>${esc(e.nama)}</b>`,e.tanggal,`<span class="pill ${e.status}">${e.status}</span>`,e.hadir,
+  (e.status==='open'?`<button class="btn sm" data-a="qr" data-id="${e.id}">QR</button> <button class="btn ghost sm" data-a="st" data-id="${e.id}" data-s="closed">Tutup</button>`:`<button class="btn sm" data-a="st" data-id="${e.id}" data-s="open">Buka</button>`)+` <button class="btn ghost sm" data-a="evdel" data-id="${e.id}">Hapus</button>`]))+'</div></div>';
  $('#ef').onsubmit=e=>{e.preventDefault();go(async()=>{await api('createEvent',Object.fromEntries(new FormData(e.target)));aAcara()})}}
 async function aLaporan(){
  const dls=(await api('laporanMine')).deadlines,opt='<option value="divisi">Laporan Divisi</option><option value="mentoring">Laporan Mentoring</option>';
