@@ -50,3 +50,23 @@ body.out nav{display:none}body.out #side{justify-content:center}body.out .brand{
  body.in #who{margin-top:auto;padding-top:14px;border-top:1px solid var(--l)}body.in #who div{display:block;flex:1;min-width:0}body.in #who b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}body.in #who .btn{display:inline-flex}
  body.in #wrap{margin-left:var(--sw);padding:32px 40px}#toast{bottom:24px}
 }
+
+/* ===== Tambahan fitur v5.1: grafik, MOM/MOY, penilaian, anggota ===== */
+[hidden]{display:none!important}
+dialog{text-align:left}dialog .lst{max-height:55vh;overflow:auto;margin-bottom:8px}
+.seg{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}.seg .btn{flex:0 0 auto}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g2c{display:grid;gap:12px;margin-bottom:12px}.g2c .card{margin:0}
+.g3c{display:grid;gap:12px}.g3c .card{margin:0}
+@media(min-width:900px){.g2c{grid-template-columns:1fr 1fr}.g3c{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}}
+.pill.tg-atas{background:var(--pl);color:var(--p)}.pill.tg-bawah{background:var(--al);color:var(--a)}
+.chart{width:100%;max-width:560px;height:auto;display:block}.chart .gl{stroke:var(--l);stroke-width:1}.chart .ax{fill:var(--m);font-size:9px}
+.c0{--k:var(--p)}.c1{--k:var(--a)}
+.ln{stroke:var(--k);stroke-width:2.5;stroke-linejoin:round}.dt{fill:var(--k)}
+.lg{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--m);margin-top:6px}.sw{display:inline-block;width:10px;height:10px;border-radius:99px;background:var(--k);margin-right:6px}
+.bars{margin-top:6px}.bar{display:grid;grid-template-columns:minmax(90px,38%) 1fr 40px;align-items:center;gap:10px;margin:7px 0;font-size:.85rem}
+.bl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bt{height:10px;border-radius:99px;background:var(--l);overflow:hidden}
+.bf{height:100%;border-radius:99px;background:var(--p)}.bf.bawah{background:var(--a)}.bar b{text-align:right}
+.aw .wn{display:block;font-size:1.15rem;margin:2px 0;color:var(--p)}.aw.atas{border-left:4px solid var(--p)}.aw.bawah{border-left:4px solid var(--a)}
+.aw select{margin-bottom:0}
+.badge{padding:8px 0;border-bottom:1px solid var(--l)}.badge:last-child{border:0;padding-bottom:0}.badge:first-child{padding-top:0}.badge.moy b{color:var(--a)}
