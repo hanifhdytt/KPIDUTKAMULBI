@@ -14,6 +14,7 @@ const out=()=>{stopScan();T='';U=null;localStorage.clear();render()};
 const V=h=>$('#v').innerHTML=h;
 const IC={home:'M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z',scan:'M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M4 12h16',laporan:'M7 3h8l4 4v14H7zM14 3v5h5M10 13h6M10 17h6',admin:'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z'};
 const ico=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${IC[k]}"/></svg>`;
+const MON=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'],fd=t=>{const m=/^(\d{4})-(\d\d)-(\d\d)/.exec(t||'');return m?`${m[3]} ${MON[+m[2]-1]} ${m[1]}`:esc(t)},ft=t=>fd(t)+(/\d\d:\d\d/.test(t||'')?', '+t.slice(11,16):'');
 const PH=(t,s='')=>`<div class="ph"><h1>${t}</h1><p>${s}</p></div>`;
 const tbl=(h,rows)=>rows.length?`<div class="tbl"><table><thead><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((c,i)=>`<td data-l="${h[i]}">${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:'<p class="mut">Belum ada data.</p>';
 function render(){
@@ -31,7 +32,7 @@ async function home(){
  V('<p class="mut">Memuat…</p>');const d=await api('me'),l=d.latest,st=(k,v,x)=>`<div class="card stat"><small>${k}</small><b>${v}</b><i>${x}</i></div>`;
  V(PH('Halo, '+esc(d.nama.split(' ')[0]),'Ringkasan KPI dan kehadiranmu')
  +(l?`<div class="stats">${st('Skor KPI',l.total,'Bulan '+l.bulan)}${st('Kehadiran',l.hadir+'/'+l.acara,l.pct+'%')}${st('Keaktifan',l.aktif,'dari 100')}${st('Eksekusi',l.eksekusi,'dari 100')}</div>`:'<div class="card mut">Belum ada data KPI.</div>')
- +'<h3 class="sh">Riwayat absensi</h3>'+tbl(['Acara','Waktu','Metode'],d.attendance.map(a=>[esc(a.nama),esc(a.ts),esc(a.metode)])));
+ +'<h3 class="sh">Riwayat absensi</h3>'+tbl(['Acara','Waktu','Metode'],d.attendance.map(a=>[esc(a.nama),ft(a.ts),`<span class="pill">${esc(a.metode).toUpperCase()}</span>`])));
 }
 
 /* ---- Scanner (iOS-safe: tombol memulai kamera, playsinline+muted, jsQR sebagai cadangan) ---- */
@@ -65,12 +66,12 @@ async function laporan(){
 /* ---- Admin ---- */
 function admin(){
  if(!isA())return;
- V(`<div class="seg">${[['acara','Acara'],['laporan','Laporan']].map(([k,n])=>`<button class="btn ${k===AT?'':'ghost'}" data-a="atab" data-t="${k}">${n}</button>`).join('')}</div><div id="av"></div>`);
+ V(PH('Admin','Kelola acara absensi dan laporan')+`<div class="seg">${[['acara','Acara'],['laporan','Laporan']].map(([k,n])=>`<button class="btn ${k===AT?'':'ghost'}" data-a="atab" data-t="${k}">${n}</button>`).join('')}</div><div id="av"></div>`);
  return AT==='acara'?aAcara():aLaporan()}
 async function aAcara(){
  const ev=await api('events'),b=(a,id,t,x='')=>`<button class="btn ${x} sm" data-a="${a}" data-id="${id}"`;
  $('#av').innerHTML=`<div class="cols"><form id="ef" class="card"><h3 class="sh" style="margin-top:0">Acara baru</h3><label>Nama<input name="nama" required></label><label>Tanggal<input type="date" name="tanggal" required></label><button class="btn">Buat acara</button></form><div>`
- +tbl(['Acara','Tanggal','Status','Hadir','Aksi'],ev.slice().reverse().map(e=>[`<b>${esc(e.nama)}</b>`,e.tanggal,`<span class="pill ${e.status}">${e.status}</span>`,e.hadir,
+ +tbl(['Acara','Tanggal','Status','Hadir','Aksi'],ev.slice().reverse().map(e=>[`<b>${esc(e.nama)}</b>`,fd(e.tanggal),`<span class="pill ${e.status}">${e.status}</span>`,e.hadir,
   (e.status==='open'?`<button class="btn sm" data-a="qr" data-id="${e.id}">QR</button> <button class="btn ghost sm" data-a="st" data-id="${e.id}" data-s="closed">Tutup</button>`:`<button class="btn sm" data-a="st" data-id="${e.id}" data-s="open">Buka</button>`)+` <button class="btn ghost sm" data-a="evdel" data-id="${e.id}">Hapus</button>`]))+'</div></div>';
  $('#ef').onsubmit=e=>{e.preventDefault();go(async()=>{await api('createEvent',Object.fromEntries(new FormData(e.target)));aAcara()})}}
 async function aLaporan(){
