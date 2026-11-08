@@ -274,18 +274,18 @@ td:last-child .btn { margin: 2px 2px 2px 0; }
 .tbl.c td { padding: 7px var(--s4); }
 
 /* login: layar terbagi (hero kiri, form kanan); di mobile menumpuk */
-.lg { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; background: var(--c); }
+.login { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; background: var(--c); }
 
 .lg-hero {
   position: relative;
   display: flex; flex-direction: column;
   padding: calc(22px + var(--safe-t)) 24px 52px;
   color: #fff;
+  /* foto blur biru + lapisan gelap agar teks putih tetap terbaca */
   background:
-    linear-gradient(rgba(255, 255, 255, .045) 1px, transparent 1px) 0 0 / 44px 44px,
-    linear-gradient(90deg, rgba(255, 255, 255, .045) 1px, transparent 1px) 0 0 / 44px 44px,
-    radial-gradient(120% 80% at 100% 100%, #2f55c9 0%, transparent 60%),
-    linear-gradient(160deg, #050b22 0%, #10205a 45%, #1f3d9e 100%);
+    linear-gradient(165deg, rgba(5, 11, 34, .74) 0%, rgba(16, 32, 90, .48) 55%, rgba(31, 61, 158, .22) 100%),
+    url("login-bg.jpg") 22% center / cover no-repeat,
+    #10205a;
 }
 .lg-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
 .lg-logo { display: grid; place-items: center; flex: none; width: 36px; height: 36px; padding: 4px; border-radius: 10px; background: #fff; }
@@ -321,7 +321,7 @@ td:last-child .btn { margin: 2px 2px 2px 0; }
 .lg-copy { margin-top: var(--s5); text-align: center; font-size: .75rem; }
 
 @media (min-width: 900px) {
-  .lg {
+  .login {
     display: grid; grid-template-columns: 1fr 1fr;
     min-height: calc(100dvh - 32px);
     margin: var(--s4);
