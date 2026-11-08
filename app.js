@@ -183,7 +183,7 @@ async function aPin(){
   r.canDecide?`<button class="btn sm" data-a="pdec" data-id="${r.id}" data-d="approve">Setujui</button> <button class="btn ghost sm" data-a="pdec" data-id="${r.id}" data-d="reject">Tolak</button>`:(r.status==='pending'?'<small>Perlu admin lain</small>':'-')]))}
 
 /* -- Acara -- */
-/* ---- Acara: daftar + halaman pengelolaan absensi di tab yang sama (tanpa popup) ---- */
+/* ---- Acara: daftar + halaman pengelolaan absensi di tab yang sama; QR tampil sebagai popup ---- */
 let AE=null,AD,FM=null;
 const acIni=n=>(String(n||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('')||'?').toUpperCase();
 const acAva=m=>`<span class="ava" data-n="${esc(m.nim)}">${esc(acIni(m.nama))}</span>`;
@@ -202,7 +202,7 @@ async function aAcDetail(){
  if(!e){AE=null;return aAcara()}
  AD={e,rows:rows.filter(x=>x.nim!=='00000000'),q:'',f:''};
  $('#av').innerHTML=`<div class="hd"><div><button class="lnk back" data-a="evback">← Semua acara</button><h2 class="evt">${esc(e.nama)}</h2><small>${fd(e.tanggal)} · <span class="pill ${e.status}">${e.status}</span></small></div><div class="acts"><button class="btn ghost sm" data-a="qr">Tampilkan QR</button><button class="btn sm" data-a="st" data-id="${e.id}" data-s="${e.status==='open'?'closed':'open'}">${e.status==='open'?'Tutup absensi':'Buka absensi'}</button></div></div>`
- +`<div id="qp" class="card qp" hidden></div><div class="mini" id="mn"></div><div class="tb"><input id="ac_q" type="search" placeholder="Cari nama, NIM, divisi…"><select id="ac_f"><option value="">Semua status</option>${Object.entries(AST).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div><div id="at"></div>`;
+ +`<div class="mini" id="mn"></div><div class="tb"><input id="ac_q" type="search" placeholder="Cari nama, NIM, divisi…"><select id="ac_f"><option value="">Semua status</option>${Object.entries(AST).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div><div id="at"></div>`;
  drawAtt()}
 function drawAtt(){
  const {rows,q,f}=AD,n=s=>rows.filter(r=>r.status===s).length,qq=q.toLowerCase();
@@ -253,7 +253,8 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b
  else if(a==='st'){await api('setStatus',{id,status:b.dataset.s});aAcara()}
  else if(a==='evdel'){if(confirm('Hapus acara beserta absensinya?')){await api('deleteEvents',{ids:[id]});aAcara()}}
  else if(a==='dldel'){await api('deadlineDelete',{periode:b.dataset.p});aLaporan()}
- else if(a==='qr'){const p=$('#qp');if(!p.hidden){p.hidden=true;return}const d=await api('qr',{id:AE}),q=qrcode(0,'M');q.addData(JSON.stringify({e:d.id,s:d.secret}));q.make();p.innerHTML=q.createSvgTag({scalable:true,margin:2})+'<div><b>QR absensi</b><p class="mut">Minta anggota membuka tab Scan lalu mengarahkan kamera ke QR ini.</p></div>';p.hidden=false}
+ else if(a==='qr'){const d=await api('qr',{id:AE}),q=qrcode(0,'M');q.addData(JSON.stringify({e:d.id,s:d.secret}));q.make();
+  dlgOpen(`<div class="qrbox">${q.createSvgTag({scalable:true,margin:2})}<h3>${esc(AD.e.nama)}</h3><p class="mut">Anggota buka tab Scan lalu arahkan kamera ke QR ini.</p><button class="btn" onclick="this.closest('dialog').close()">Tutup</button></div>`)}
 })});
 document.addEventListener('change',e=>{const t=e.target;go(async()=>{
  if(t.id==='pfile'){const f=t.files[0];t.value='';await pickFoto(f)}
