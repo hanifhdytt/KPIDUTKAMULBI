@@ -48,13 +48,11 @@ addEventListener('hashchange',()=>U&&render());
 async function home(){
  V('<p class="mut">Memuat…</p>');if(!AY)AY=bln().slice(0,4);
  const d=await api('me',{year:AY}),l=d.latest,ms=d.months,st=(k,v,x)=>`<div class="card stat"><small>${k}</small><b>${v}</b><i>${x}</i></div>`;
- const aw=[...d.momAwards.map(a=>`<div class="badge">🏅 <b>Member of the Month</b><small>${bn(a.bulan)} · ${TG[a.tingkat]}</small></div>`),...d.moyAwards.map(a=>`<div class="badge moy">🏆 <b>Member of the Year ${a.tahun}</b><small>${TG[a.tingkat]}</small></div>`)].join('');
  V(PH('Halo, '+esc(d.nama.split(' ')[0]),'Ringkasan KPI dan kehadiranmu')
  +`<div class="row" style="margin-bottom:14px"><span>${esc(d.divisi||'')} ${tgPill(d.tingkat)}</span>${yearSel('yr',AY)}</div>`
- +(aw?`<div class="card">${aw}</div>`:'')
- +(l?`<div class="stats">${st('Skor KPI',f1(l.total),'Bulan '+bn(l.bulan)+(l.rank?' · peringkat '+l.rank+'/'+l.dari:''))}${st('Kehadiran',l.hadir+'/'+l.acara,l.pct+'%')}${st('Keaktifan',f1(l.aktif),'dari 100')}${st('Eksekusi',f1(l.eksekusi),'dari 100')}</div>`:'<div class="card mut">Belum ada data KPI.</div>')
+ +(l?`<div class="stats">${st('Skor KPI',f1(l.total),'Bulan '+bn(l.bulan))}${st('Kehadiran',l.hadir+'/'+l.acara,l.pct+'%')}${st('Keaktifan',f1(l.aktif),'dari 100')}${st('Eksekusi',f1(l.eksekusi),'dari 100')}</div>`:'<div class="card mut">Belum ada data KPI.</div>')
  +(l&&l.catatan?`<div class="card" style="margin-top:12px"><small>Catatan admin · ${bn(l.bulan)}</small><p style="margin:4px 0 0">${esc(l.catatan)}</p></div>`:'')
- +(ms.length?`<h3 class="sh">Grafik kinerja saya</h3><div class="g2c"><div class="card"><small>Skor per bulan</small>${lineChart(ms.map(m=>bs(m.bulan)),[{name:'Skor saya',vals:ms.map(m=>m.total>0?m.total:null)},{name:'Rata-rata anggota',vals:ms.map(m=>m.rata>0?m.rata:null)}])}${d.tahun?`<small style="margin-top:8px">Rata-rata ${AY}: <b>${f1(d.tahun.avg)}</b> · peringkat ${d.tahun.rank} dari ${d.tahun.dari}</small>`:''}</div>`
+ +(ms.length?`<h3 class="sh">Grafik kinerja saya</h3><div class="g2c"><div class="card"><small>Skor per bulan</small>${lineChart(ms.map(m=>bs(m.bulan)),[{name:'Skor saya',vals:ms.map(m=>m.total>0?m.total:null)},{name:'Kehadiran %',vals:ms.map(m=>m.acara?m.pct:null)}])}${d.tahun?`<small style="margin-top:8px">Rata-rata skor ${AY}: <b>${f1(d.tahun.avg)}</b></small>`:''}</div>`
   +(l?`<div class="card"><small>Komponen ${bn(l.bulan)}</small>${bars([{label:'Kehadiran',val:l.pct},{label:'Keaktifan',val:l.aktif},{label:'Eksekusi',val:l.eksekusi}])}</div>`:'')+'</div>':'')
  +'<h3 class="sh">Riwayat absensi</h3>'+tbl(['Acara','Waktu','Metode'],d.attendance.map(a=>[esc(a.nama),ft(a.ts),`<span class="pill">${esc(a.metode).toUpperCase()}</span>`])));
 }
