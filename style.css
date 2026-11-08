@@ -70,3 +70,7 @@ dialog{text-align:left}dialog .lst{max-height:55vh;overflow:auto;margin-bottom:8
 .aw .wn{display:block;font-size:1.15rem;margin:2px 0;color:var(--p)}.aw.atas{border-left:4px solid var(--p)}.aw.bawah{border-left:4px solid var(--a)}
 .aw select{margin-bottom:0}
 .badge{padding:8px 0;border-bottom:1px solid var(--l)}.badge:last-child{border:0;padding-bottom:0}.badge:first-child{padding-top:0}.badge.moy b{color:var(--a)}
+
+/* ===== Profil ===== */
+img.av{object-fit:cover;display:block}
+.pf{width:112px;height:112px;border-radius:50%;object-fit:cover;display:grid;place-items:center;margin:0 auto;background:var(--p);color:#fff;font-size:2.4rem;font-weight:700;border:3px solid var(--pl)}
