@@ -33,7 +33,7 @@ const bars=rows=>rows.length?`<div class="bars">${rows.map(r=>`<div class="bar">
 const avgOf=a=>a.length?a.reduce((n,x)=>n+x,0)/a.length:null;
 const yearSel=(id,v)=>{const y=+bln().slice(0,4);return`<select id="${id}" style="width:auto;margin:0">${[y,y-1,y-2].map(x=>`<option ${String(x)===String(v)?'selected':''}>${x}</option>`).join('')}</select>`};
 
-function paintWho(){$('#who').innerHTML=U?`${PF&&PF.foto?`<img class="av" src="${PF.foto}" alt="">`:`<span class="av">${esc((U.nama||'?')[0])}</span>`}<div><b>${esc(U.nama)}</b><small>${esc(U.role)}</small></div><button class="btn ghost sm" data-a="out">Keluar</button>`:''}
+function paintWho(){$('#who').innerHTML=U?`${PF&&PF.foto?`<img class="av" src="${esc(PF.foto)}" alt="">`:`<span class="av">${esc((U.nama||'?')[0])}</span>`}<div><b>${esc(U.nama)}</b><small>${esc(U.role)}</small></div><button class="btn ghost sm" data-a="out">Keluar</button>`:''}
 function render(){
  document.body.className=U?'in':'out';const nav=$('#nav');
  paintWho();
@@ -60,19 +60,23 @@ async function home(){
 }
 
 /* ---- Profil: foto, nama, ganti PIN (butuh persetujuan admin) ---- */
+const loadImg=f=>new Promise((ok,no)=>{const u=URL.createObjectURL(f),i=new Image();i.onload=()=>{URL.revokeObjectURL(u);ok(i)};i.onerror=()=>{URL.revokeObjectURL(u);no(Error('Foto tidak bisa dibaca. Coba format JPG atau PNG.'))};i.src=u});
 async function pickFoto(file){
  if(!file)return;if(file.size>15*1024*1024)throw Error('Ukuran foto maksimal 15 MB');
  if(file.type&&!/^image\//.test(file.type))throw Error('File harus berupa gambar (JPG, PNG, WebP)');
- let im;try{im=await createImageBitmap(file,{imageOrientation:'from-image'})}catch{throw Error('Foto tidak bisa dibaca. Coba format JPG atau PNG.')}
- const sz=512,c=document.createElement('canvas');c.width=c.height=sz;const x=c.getContext('2d'),m=Math.min(im.width,im.height);
- x.fillStyle='#fff';x.fillRect(0,0,sz,sz);x.drawImage(im,(im.width-m)/2,(im.height-m)/2,m,m,0,0,sz,sz);
+ const im=await loadImg(file),w=im.naturalWidth,h=im.naturalHeight,m=Math.min(w,h);
+ if(!m)throw Error('Foto tidak bisa dibaca. Coba format JPG atau PNG.');
+ const sz=512,c=document.createElement('canvas');c.width=c.height=sz;const x=c.getContext('2d');
+ x.fillStyle='#fff';x.fillRect(0,0,sz,sz);x.drawImage(im,(w-m)/2,(h-m)/2,m,m,0,0,sz,sz);
  let q=.85,d=c.toDataURL('image/jpeg',q);while(d.length>600000&&q>.4){q-=.1;d=c.toDataURL('image/jpeg',q)}
  PF=await api('profileSave',{foto:d});paintWho();toast('Foto diperbarui');profil()}
 async function profil(){
- V('<p class="mut">Memuat…</p>');PF=await api('profile');paintWho();
+ V('<p class="mut">Memuat…</p>');
+ try{PF=await api('profile')}catch(e){return V(PH('Profil','Kelola foto, nama, dan PIN akunmu')+`<div class="card"><b>Profil belum bisa dimuat</b><p style="margin:6px 0 12px">${esc(e.message)}</p><button class="btn" data-a="retry">Coba lagi</button></div>`)}
+ paintWho();
  const p=PF,r=p.pinRequest,rs={pending:['open','Menunggu persetujuan admin'],approved:['closed','Disetujui'],rejected:['','Ditolak']};
  V(PH('Profil','Kelola foto, nama, dan PIN akunmu')
- +`<div class="cols"><div><div class="card" style="text-align:center">${p.foto?`<img class="pf" src="${p.foto}" alt="Foto profil">`:`<span class="pf">${esc((p.nama||'?')[0])}</span>`}<h3 style="margin:10px 0 2px">${esc(p.nama)}</h3><small>NIM ${esc(p.nim)} · ${esc(p.divisi||'-')}</small><div style="margin:8px 0 14px">${tgPill(p.tingkat)} <span class="pill">${esc(p.role)}</span></div><label class="btn" style="margin-bottom:8px;cursor:pointer">Pilih foto<input type="file" accept="image/*" id="pfile" hidden></label>${p.foto?'<button class="btn ghost" data-a="pfdel">Hapus foto</button>':''}<p class="mut" style="font-size:.8rem;margin:10px 0 0">Ukuran foto maks. 15 MB (JPG, PNG, WebP). Foto otomatis dipotong persegi dan diperkecil.</p></div></div><div>`
+ +`<div class="cols"><div><div class="card" style="text-align:center">${p.foto?`<img class="pf" src="${esc(p.foto)}" alt="Foto profil">`:`<span class="pf">${esc((p.nama||'?')[0])}</span>`}<h3 style="margin:10px 0 2px">${esc(p.nama)}</h3><small>NIM ${esc(p.nim)} · ${esc(p.divisi||'-')}</small><div style="margin:8px 0 14px">${tgPill(p.tingkat)} <span class="pill">${esc(p.role)}</span></div><label class="btn" style="margin-bottom:8px;cursor:pointer">Pilih foto<input type="file" accept="image/*" id="pfile" hidden></label>${p.foto?'<button class="btn ghost" data-a="pfdel">Hapus foto</button>':''}<p class="mut" style="font-size:.8rem;margin:10px 0 0">Ukuran foto maks. 15 MB (JPG, PNG, WebP). Foto otomatis dipotong persegi dan diperkecil.</p></div></div><div>`
  +`<form id="nf" class="card"><h3 class="sh" style="margin-top:0">Nama</h3><label>Nama lengkap<input name="nama" value="${esc(p.nama)}" minlength="2" maxlength="80" required></label><button class="btn">Simpan nama</button></form>`
  +`<div class="card"><h3 class="sh" style="margin-top:0">Ganti PIN</h3>`
  +(r?`<div class="row" style="margin-bottom:12px"><span class="pill ${rs[r.status][0]}">${rs[r.status][1]}</span><small>${ft(r.status==='pending'?r.created_at:(r.decided_at||r.created_at))}</small></div>`+(r.status==='rejected'&&r.note?`<p style="margin:0 0 12px">Alasan: ${esc(r.note)}</p>`:''):'')
@@ -217,6 +221,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b
   $('#ef2').onsubmit=ev=>{ev.preventDefault();go(async()=>{await api('memberSave',{...Object.fromEntries(new FormData(ev.target)),target:m.nim});$('#dlg').close();toast('Anggota diperbarui');aAnggota()})}}
  else if(a==='mdel'){const m=ML.find(x=>x.nim===b.dataset.n);if(confirm('Hapus '+m.nama+'? Absensi, nilai, dan laporannya ikut terhapus permanen.')){await api('memberDelete',{target:m.nim});toast('Anggota dihapus');aAnggota()}}
  else if(a==='att'){const r=await api('attendanceManage',{id});dlgOpen(`<h3 class="sh" style="margin-top:0">Kelola absensi</h3><div class="lst">${r.filter(x=>x.nim!=='00000000').map(x=>`<div class="row" style="margin-bottom:8px"><span>${esc(x.nama)}</span><select data-att="${esc(id)}|${esc(x.nim)}" style="width:auto;margin:0">${['belum','hadir','izin','sakit'].map(s=>`<option ${s===x.status?'selected':''}>${s}</option>`).join('')}</select></div>`).join('')}</div><button class="btn" style="margin-top:8px" onclick="this.closest('dialog').close()">Tutup</button>`)}
+ else if(a==='retry')profil();
  else if(a==='pfdel'){if(confirm('Hapus foto profil?')){PF=await api('profileSave',{removeFoto:true});paintWho();toast('Foto dihapus');profil()}}
  else if(a==='pcancel'){PF=await api('pinRequestCancel');toast('Permintaan dibatalkan');profil()}
  else if(a==='pdec'){const ap=b.dataset.d==='approve';let note='';if(ap){if(!confirm('Setujui penggantian PIN? Anggota harus masuk lagi dengan PIN baru.'))return}else{note=prompt('Alasan penolakan (opsional)');if(note===null)return}
