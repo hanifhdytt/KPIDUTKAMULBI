@@ -254,7 +254,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b
  else if(a==='evdel'){if(confirm('Hapus acara beserta absensinya?')){await api('deleteEvents',{ids:[id]});aAcara()}}
  else if(a==='dldel'){await api('deadlineDelete',{periode:b.dataset.p});aLaporan()}
  else if(a==='qr'){const d=await api('qr',{id:AE}),q=qrcode(0,'M');q.addData(JSON.stringify({e:d.id,s:d.secret}));q.make();
-  dlgOpen(`<div class="qrbox">${q.createSvgTag({scalable:true,margin:2})}<h3>${esc(AD.e.nama)}</h3><p class="mut">Anggota buka tab Scan lalu arahkan kamera ke QR ini.</p><button class="btn" onclick="this.closest('dialog').close()">Tutup</button></div>`)}
+  dlgOpen(`<div class="qrbox"><div class="qr-badge">${ico('scan')}</div><h3>Scan QR absensi</h3><p class="mut">Arahkan kamera dari tab Scan ke kode ini untuk mencatat kehadiran.</p><div class="qr-frame">${q.createSvgTag({scalable:true,margin:2})}</div><div class="qr-sep"><span>acara</span></div><div class="qr-info"><b>${esc(AD.e.nama)}</b><small>${fd(AD.e.tanggal)}</small></div><div class="qr-foot"><button class="btn" onclick="this.closest('dialog').close()">Tutup</button></div></div>`)}
 })});
 document.addEventListener('change',e=>{const t=e.target;go(async()=>{
  if(t.id==='pfile'){const f=t.files[0];t.value='';await pickFoto(f)}
