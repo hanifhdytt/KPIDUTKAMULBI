@@ -123,11 +123,10 @@ nav a.on { color: var(--p); }
 nav a.on svg { color: var(--a); }
 nav svg { display: block; width: 22px; height: 22px; margin: 0 auto 2px; }
 
-/* halaman login: tanpa navigasi */
-body.out nav { display: none; }
-body.out #side { justify-content: center; }
-body.out .brand { flex: none; }
-body.out #wrap { padding-top: var(--s2); }
+/* halaman login: tanpa header, navigasi, maupun padding bawaan */
+body.out nav, body.out #side { display: none; }
+body.out #wrap { padding: 0; }
+body.out #v { max-width: none; }
 
 /* ---------- 4. Komponen ---------- */
 
@@ -274,12 +273,78 @@ td:last-child .btn { margin: 2px 2px 2px 0; }
 .tbl.c th { padding: 9px var(--s4); }
 .tbl.c td { padding: 7px var(--s4); }
 
-/* login */
-.auth { max-width: 400px; margin: 5vh auto 0; padding: 28px var(--s5); text-align: center; }
-.auth .logo-lg { display: block; width: min(260px, 80%); margin: 0 auto var(--s3); }
-.auth h1 { margin: 0; font-size: 1.3rem; color: var(--p); }
-.auth p { margin: 2px 0 var(--s5); }
-.auth form { text-align: left; }
+/* login: layar terbagi (hero kiri, form kanan); di mobile menumpuk */
+.lg { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; background: var(--c); }
+
+.lg-hero {
+  position: relative;
+  display: flex; flex-direction: column;
+  padding: calc(22px + var(--safe-t)) 24px 52px;
+  color: #fff;
+  background:
+    linear-gradient(rgba(255, 255, 255, .045) 1px, transparent 1px) 0 0 / 44px 44px,
+    linear-gradient(90deg, rgba(255, 255, 255, .045) 1px, transparent 1px) 0 0 / 44px 44px,
+    radial-gradient(120% 80% at 100% 100%, #2f55c9 0%, transparent 60%),
+    linear-gradient(160deg, #050b22 0%, #10205a 45%, #1f3d9e 100%);
+}
+.lg-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+.lg-logo { display: grid; place-items: center; flex: none; width: 36px; height: 36px; padding: 4px; border-radius: 10px; background: #fff; }
+.lg-logo img { display: block; width: 100%; height: 100%; object-fit: contain; }
+
+.lg-main { margin-top: 32px; }
+.lg-star { display: block; width: 28px; height: 28px; margin-bottom: 12px; color: var(--a); }
+.lg-hero h1 { margin: 0; font-size: clamp(2rem, 9vw, 2.6rem); font-weight: 600; line-height: 1.1; letter-spacing: -.02em; }
+.lg-hero p { max-width: 34ch; margin: 12px 0 0; font-size: .95rem; color: rgba(255, 255, 255, .75); }
+
+.lg-chips { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: 20px; order: 3; }
+.chip {
+  padding: 7px 14px;
+  border: 1px solid rgba(255, 255, 255, .2); border-radius: 99px;
+  background: rgba(255, 255, 255, .1);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  font-size: .78rem; color: #fff; white-space: nowrap;
+}
+.lg-foot { display: none; color: rgba(255, 255, 255, .55); font-size: .78rem; }
+
+.lg-form {
+  position: relative;
+  display: flex; flex-direction: column; flex: 1;
+  margin-top: -24px;
+  padding: 28px 24px calc(20px + var(--safe-b));
+  background: #fff;
+  border-radius: 24px 24px 0 0;
+}
+.lg-box { width: 100%; max-width: 380px; margin: auto; }
+.lg-box h2 { margin: 0 0 var(--s1); font-size: 1.4rem; letter-spacing: -.02em; color: var(--t); }
+.lg-box > p { margin: 0 0 var(--s5); font-size: .9rem; }
+.lg-help { margin: var(--s4) 0 0 !important; text-align: center; font-size: .85rem; color: var(--m); }
+.lg-copy { margin-top: var(--s5); text-align: center; font-size: .75rem; }
+
+@media (min-width: 900px) {
+  .lg {
+    display: grid; grid-template-columns: 1fr 1fr;
+    min-height: calc(100dvh - 32px);
+    margin: var(--s4);
+    border: 1px solid var(--l); border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(22, 34, 74, .08);
+  }
+  .lg-hero { justify-content: space-between; min-height: 560px; padding: 32px 44px; }
+  .lg-main { margin: auto 0; }
+  .lg-hero h1 { font-size: clamp(2.6rem, 4.2vw, 3.6rem); }
+  .lg-foot { display: block; }
+
+  /* chip melayang di sekeliling teks utama */
+  .lg-chips { position: absolute; inset: 0; margin: 0; pointer-events: none; }
+  .chip { position: absolute; }
+  .chip.c1 { top: 14%; right: 9%; }
+  .chip.c2 { top: 23%; left: 44px; }
+  .chip.c3 { bottom: 25%; right: 8%; }
+  .chip.c4 { bottom: 13%; left: 44px; }
+
+  .lg-form { margin-top: 0; padding: 32px 44px; border-radius: 0; }
+  .lg-copy { display: none; }
+}
 
 /* kamera */
 video {
