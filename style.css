@@ -390,8 +390,19 @@ details.card[open] summary { margin-bottom: var(--s2); }
 .mini b { display: block; font-size: 1.25rem; line-height: 1.3; color: var(--p); }
 .mini small { font-size: .74rem; }
 
-.qp { display: flex; align-items: center; gap: var(--s4); }
-.qp svg { width: 150px; height: 150px; flex: none; }
+/* popup QR absensi: dibuat besar supaya mudah discan dari jauh */
+dialog:has(.qrbox) { width: min(94vw, 460px); }
+.qrbox { text-align: center; }
+.qrbox svg {
+  display: block;
+  width: 100%; max-width: 380px;
+  margin: 0 auto var(--s3);
+  padding: var(--s2);
+  background: #fff; /* area putih wajib agar QR terbaca scanner */
+  border-radius: var(--r-sm);
+}
+.qrbox h3 { margin: 0 0 var(--s1); color: var(--p); }
+.qrbox p { margin: 0 0 var(--s4); }
 
 select.sel { width: auto; margin: 0; padding: 6px var(--s2); font-size: .85rem; border-radius: var(--s2); }
 
@@ -421,7 +432,6 @@ select.sel { width: auto; margin: 0; padding: 6px var(--s2); font-size: .85rem; 
 
   .acts { width: 100%; }
   .acts .btn { flex: 1; }
-  .qp { flex-direction: column; text-align: center; }
   .tb select { flex: 1; }
 
   /* tabel padat (daftar anggota & absensi): satu baris ringkas per item */
