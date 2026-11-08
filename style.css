@@ -5,7 +5,7 @@ small,.mut{color:var(--m)}small{display:block}
 #side{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;background:var(--c);border-bottom:1px solid var(--l)}
 .brand{display:flex;align-items:center;gap:10px;flex:1;min-width:0}.brand b{display:block;line-height:1.2;color:var(--p)}.brand small{font-size:.78rem}
 .brand img{width:38px;height:38px;object-fit:contain;flex:none}
-#who{display:flex;align-items:center;gap:10px}#who div,#who .btn{display:none}
+#who{display:flex;align-items:center;gap:10px}#who div{display:none}
 .av{width:34px;height:34px;border-radius:50%;background:var(--p);color:#fff;display:grid;place-items:center;font-weight:700;flex:none}
 #wrap{padding:20px 16px calc(92px + env(safe-area-inset-bottom))}#v{max-width:1180px;margin:0 auto}
 nav{position:fixed;inset:auto 0 0;z-index:6;display:flex;background:var(--c);border-top:1px solid var(--l);padding-bottom:env(safe-area-inset-bottom)}
