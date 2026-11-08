@@ -1,7 +1,7 @@
 const API='https://kpi-duta-api.dutakpi.workers.dev';
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const bln=()=>new Date(Date.now()+7*36e5).toISOString().slice(0,7);
-let T=localStorage.getItem('t')||'',U=JSON.parse(localStorage.getItem('u')||'null'),RL,AT='dash',AY='',AM='',AM2='',AF='all',ML=[],stream,timer;
+let T=localStorage.getItem('t')||'',U=JSON.parse(localStorage.getItem('u')||'null'),RL,PF=null,AT='dash',AY='',AM='',AM2='',AF='all',ML=[],stream,timer;
 const isA=()=>U&&/admin/.test(U.role);
 const toast=m=>{const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toast.i);toast.i=setTimeout(()=>t.hidden=true,3500)};
 const go=async f=>{try{await f()}catch(e){toast(e.message||'Terjadi kesalahan')}};
@@ -10,9 +10,9 @@ async function api(a,p={}){
  const j=await r.json().catch(()=>({error:'Respon server tidak valid'}));
  if(r.status===401&&a!=='login'){out();throw Error(j.error)}
  if(!j.ok)throw Error(j.error);return j.data}
-const out=()=>{stopScan();T='';U=null;localStorage.clear();render()};
+const out=()=>{stopScan();T='';U=null;PF=null;localStorage.clear();render()};
 const V=h=>$('#v').innerHTML=h;
-const IC={home:'M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z',scan:'M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M4 12h16',laporan:'M7 3h8l4 4v14H7zM14 3v5h5M10 13h6M10 17h6',admin:'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z'};
+const IC={home:'M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z',scan:'M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M4 12h16',laporan:'M7 3h8l4 4v14H7zM14 3v5h5M10 13h6M10 17h6',admin:'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',profil:'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM4 21c0-4.4 3.6-7 8-7s8 2.6 8 7'};
 const ico=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${IC[k]}"/></svg>`;
 const MON=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'],fd=t=>{const m=/^(\d{4})-(\d\d)-(\d\d)/.exec(t||'');return m?`${m[3]} ${MON[+m[2]-1]} ${m[1]}`:esc(t)},ft=t=>fd(t)+(/\d\d:\d\d/.test(t||'')?', '+t.slice(11,16):'');
 const PH=(t,s='')=>`<div class="ph"><h1>${t}</h1><p>${s}</p></div>`;
@@ -33,14 +33,16 @@ const bars=rows=>rows.length?`<div class="bars">${rows.map(r=>`<div class="bar">
 const avgOf=a=>a.length?a.reduce((n,x)=>n+x,0)/a.length:null;
 const yearSel=(id,v)=>{const y=+bln().slice(0,4);return`<select id="${id}" style="width:auto;margin:0">${[y,y-1,y-2].map(x=>`<option ${String(x)===String(v)?'selected':''}>${x}</option>`).join('')}</select>`};
 
+function paintWho(){$('#who').innerHTML=U?`${PF&&PF.foto?`<img class="av" src="${PF.foto}" alt="">`:`<span class="av">${esc((U.nama||'?')[0])}</span>`}<div><b>${esc(U.nama)}</b><small>${esc(U.role)}</small></div><button class="btn ghost sm" data-a="out">Keluar</button>`:''}
 function render(){
  document.body.className=U?'in':'out';const nav=$('#nav');
- $('#who').innerHTML=U?`<span class="av">${esc((U.nama||'?')[0])}</span><div><b>${esc(U.nama)}</b><small>${esc(U.role)}</small></div><button class="btn ghost sm" data-a="out">Keluar</button>`:'';
+ paintWho();
  if(!U){nav.innerHTML='';return V(`<div class="auth card"><img class="logo-lg" src="logo.png" alt="Duta Kampus ULBI" onerror="this.style.display='none'"><h1>Masuk</h1><p class="mut">Sistem KPI Duta Kampus</p><form id="lg"><label>NIM<input name="nim" inputmode="numeric" autocomplete="username" required></label><label>PIN<input name="pin" type="password" inputmode="numeric" autocomplete="current-password" required></label><button class="btn">Masuk</button></form></div>`),
   $('#lg').onsubmit=e=>{e.preventDefault();go(async()=>{const d=await api('login',Object.fromEntries(new FormData(e.target)));T=d.token;U={nim:d.nim,nama:d.nama,role:d.role,divisi:d.divisi};localStorage.setItem('t',T);localStorage.setItem('u',JSON.stringify(U));render()})}}
- const tabs=[['home','Beranda'],['scan','Scan'],['laporan','Laporan'],...(isA()?[['admin','Admin']]:[])],h=location.hash.slice(1)||'home';
+ const tabs=[['home','Beranda'],['scan','Scan'],['laporan','Laporan'],['profil','Profil'],...(isA()?[['admin','Admin']]:[])],h=location.hash.slice(1)||'home';
  nav.innerHTML=tabs.map(([k,n])=>`<a href="#${k}" class="${k===h?'on':''}">${ico(k)}${n}</a>`).join('');
- stopScan();go(()=>({home,scan,laporan,admin}[h]||home)());
+ if(!PF)api('profile').then(p=>{PF=p;paintWho()}).catch(()=>{});
+ stopScan();go(()=>({home,scan,laporan,profil,admin}[h]||home)());
 }
 addEventListener('hashchange',()=>U&&render());
 
@@ -56,6 +58,28 @@ async function home(){
   +(l?`<div class="card"><small>Komponen ${bn(l.bulan)}</small>${bars([{label:'Kehadiran',val:l.pct},{label:'Keaktifan',val:l.aktif},{label:'Eksekusi',val:l.eksekusi}])}</div>`:'')+'</div>':'')
  +'<h3 class="sh">Riwayat absensi</h3>'+tbl(['Acara','Waktu','Metode'],d.attendance.map(a=>[esc(a.nama),ft(a.ts),`<span class="pill">${esc(a.metode).toUpperCase()}</span>`])));
 }
+
+/* ---- Profil: foto, nama, ganti PIN (butuh persetujuan admin) ---- */
+async function pickFoto(file){
+ if(!file)return;if(file.size>15*1024*1024)throw Error('Ukuran foto maksimal 15 MB');
+ if(file.type&&!/^image\//.test(file.type))throw Error('File harus berupa gambar (JPG, PNG, WebP)');
+ let im;try{im=await createImageBitmap(file,{imageOrientation:'from-image'})}catch{throw Error('Foto tidak bisa dibaca. Coba format JPG atau PNG.')}
+ const sz=512,c=document.createElement('canvas');c.width=c.height=sz;const x=c.getContext('2d'),m=Math.min(im.width,im.height);
+ x.fillStyle='#fff';x.fillRect(0,0,sz,sz);x.drawImage(im,(im.width-m)/2,(im.height-m)/2,m,m,0,0,sz,sz);
+ let q=.85,d=c.toDataURL('image/jpeg',q);while(d.length>600000&&q>.4){q-=.1;d=c.toDataURL('image/jpeg',q)}
+ PF=await api('profileSave',{foto:d});paintWho();toast('Foto diperbarui');profil()}
+async function profil(){
+ V('<p class="mut">Memuat…</p>');PF=await api('profile');paintWho();
+ const p=PF,r=p.pinRequest,rs={pending:['open','Menunggu persetujuan admin'],approved:['closed','Disetujui'],rejected:['','Ditolak']};
+ V(PH('Profil','Kelola foto, nama, dan PIN akunmu')
+ +`<div class="cols"><div><div class="card" style="text-align:center">${p.foto?`<img class="pf" src="${p.foto}" alt="Foto profil">`:`<span class="pf">${esc((p.nama||'?')[0])}</span>`}<h3 style="margin:10px 0 2px">${esc(p.nama)}</h3><small>NIM ${esc(p.nim)} · ${esc(p.divisi||'-')}</small><div style="margin:8px 0 14px">${tgPill(p.tingkat)} <span class="pill">${esc(p.role)}</span></div><label class="btn" style="margin-bottom:8px;cursor:pointer">Pilih foto<input type="file" accept="image/*" id="pfile" hidden></label>${p.foto?'<button class="btn ghost" data-a="pfdel">Hapus foto</button>':''}<p class="mut" style="font-size:.8rem;margin:10px 0 0">Ukuran foto maks. 15 MB (JPG, PNG, WebP). Foto otomatis dipotong persegi dan diperkecil.</p></div></div><div>`
+ +`<form id="nf" class="card"><h3 class="sh" style="margin-top:0">Nama</h3><label>Nama lengkap<input name="nama" value="${esc(p.nama)}" minlength="2" maxlength="80" required></label><button class="btn">Simpan nama</button></form>`
+ +`<div class="card"><h3 class="sh" style="margin-top:0">Ganti PIN</h3>`
+ +(r?`<div class="row" style="margin-bottom:12px"><span class="pill ${rs[r.status][0]}">${rs[r.status][1]}</span><small>${ft(r.status==='pending'?r.created_at:(r.decided_at||r.created_at))}</small></div>`+(r.status==='rejected'&&r.note?`<p style="margin:0 0 12px">Alasan: ${esc(r.note)}</p>`:''):'')
+ +(r&&r.status==='pending'?'<p class="mut" style="margin:0 0 12px">PIN lama tetap berlaku sampai admin menyetujui. Mengajukan lagi akan menggantikan permintaan ini.</p><button class="btn ghost" data-a="pcancel" style="margin-bottom:14px">Batalkan permintaan</button>':'')
+ +`<form id="pf2"><label>PIN saat ini<input name="currentPin" type="password" inputmode="numeric" autocomplete="current-password" required></label><label>PIN baru (4-20 karakter)<input name="newPin" type="password" inputmode="numeric" autocomplete="new-password" minlength="4" maxlength="20" required></label><label>Ulangi PIN baru<input name="again" type="password" inputmode="numeric" autocomplete="new-password" required></label><button class="btn">Ajukan penggantian PIN</button><p class="mut" style="font-size:.8rem;margin:10px 0 0">PIN baru baru aktif setelah disetujui admin. Setelah disetujui, kamu perlu masuk lagi dengan PIN baru.</p></form></div></div></div>`);
+ $('#nf').onsubmit=e=>{e.preventDefault();go(async()=>{PF=await api('profileSave',{nama:e.target.nama.value});U.nama=PF.nama;localStorage.setItem('u',JSON.stringify(U));paintWho();toast('Nama diperbarui');profil()})};
+ $('#pf2').onsubmit=e=>{e.preventDefault();go(async()=>{const f=e.target;if(f.newPin.value!==f.again.value)throw Error('Ulangi PIN baru tidak sama');await api('pinRequest',{currentPin:f.currentPin.value,newPin:f.newPin.value});toast('Permintaan dikirim ke admin');profil()})}}
 
 /* ---- Scanner (iOS-safe: tombol memulai kamera, playsinline+muted, jsQR sebagai cadangan) ---- */
 function scan(){V(''+PH('Scan absensi','Arahkan kamera ke QR acara')+'<video id="cam" playsinline muted autoplay hidden></video><button class="btn" data-a="cam">Buka kamera</button><p class="note" style="margin:12px 0">Kamera tidak jalan? Ambil foto QR:</p><label class="btn ghost" style="display:flex;align-items:center;justify-content:center">Foto QR<input type="file" accept="image/*" capture="environment" id="qf" hidden></label>');
@@ -86,11 +110,13 @@ async function laporan(){
  f.onsubmit=e=>{e.preventDefault();go(async()=>{await api('laporanSave',Object.fromEntries(new FormData(f)));toast('Laporan tersimpan');laporan()})}}
 
 /* ---- Admin ---- */
-const ATABS=()=>[['dash','Dashboard'],['nilai','Penilaian'],['anggota','Anggota'],['acara','Acara'],['laporan','Laporan'],...(U.role==='superadmin'?[['follow','Tindak lanjut']]:[])];
+const ATABS=()=>[['dash','Dashboard'],['nilai','Penilaian'],['anggota','Anggota'],['acara','Acara'],['laporan','Laporan'],['pin','Verifikasi PIN'],...(U.role==='superadmin'?[['follow','Tindak lanjut']]:[])];
 function admin(){
  if(!isA())return;
  V(PH('Admin','Dashboard KPI, penilaian, anggota, acara, dan laporan')+`<div class="seg">${ATABS().map(([k,n])=>`<button class="btn ${k===AT?'':'ghost'}" data-a="atab" data-t="${k}">${n}</button>`).join('')}</div><div id="av"></div>`);
- return({dash:aDash,nilai:aNilai,anggota:aAnggota,acara:aAcara,laporan:aLaporan,follow:aFollow}[AT]||aDash)()}
+ pinBadge();
+ return({dash:aDash,nilai:aNilai,anggota:aAnggota,acara:aAcara,laporan:aLaporan,pin:aPin,follow:aFollow}[AT]||aDash)()}
+const pinBadge=()=>api('pinRequests').then(r=>{const b=document.querySelector('[data-t=pin]');if(b&&r.pending)b.textContent='Verifikasi PIN ('+r.pending+')'}).catch(()=>{});
 
 /* -- Dashboard: MOM/MOY per tingkat + grafik seluruh anggota -- */
 function awCard(jenis,periode,aw,t){const w=aw[t];let b;
@@ -144,6 +170,13 @@ async function aFollow(){
  $('#av').innerHTML=`<div class="card"><label style="margin:0">Bulan<input type="month" id="fm" value="${AM2}"></label><p class="mut" style="margin:10px 0 0">Anggota dengan rata-rata keaktifan dan eksekusi di bawah ${d.threshold} · ${d.total} anggota</p></div>`
  +tbl(['Nama','Divisi','Keaktifan','Eksekusi','Rata-rata','Catatan'],d.rows.map(r=>[esc(r.nama),esc(r.divisi),f1(r.keaktifan),f1(r.eksekusi),`<span class="pill open">${r.avg}</span>`,esc(r.catatan||'-')]))}
 
+/* -- Verifikasi permintaan ganti PIN -- */
+async function aPin(){
+ const d=await api('pinRequests'),st={pending:['open','Menunggu'],approved:['closed','Disetujui'],rejected:['','Ditolak']};
+ $('#av').innerHTML=`<p class="mut" style="margin-top:0">${d.pending} permintaan menunggu. PIN baru hanya berlaku setelah kamu setujui, pastikan peminta benar-benar pemilik akun. Permintaan milik admin hanya bisa diproses Super Admin atau admin lain.</p>`
+ +tbl(['Anggota','Divisi','Diajukan','Status','Aksi'],d.rows.map(r=>[esc(r.nama)+`<small>${esc(r.nim)}${r.role!=='member'?' · '+esc(r.role):''}</small>`,esc(r.divisi||'-'),ft(r.created_at),`<span class="pill ${st[r.status][0]}">${st[r.status][1]}</span>`+(r.status==='rejected'&&r.note?`<small>${esc(r.note)}</small>`:''),
+  r.canDecide?`<button class="btn sm" data-a="pdec" data-id="${r.id}" data-d="approve">Setujui</button> <button class="btn ghost sm" data-a="pdec" data-id="${r.id}" data-d="reject">Tolak</button>`:(r.status==='pending'?'<small>Perlu admin lain</small>':'-')]))}
+
 /* -- Acara -- */
 async function aAcara(){
  const ev=await api('events');
@@ -184,6 +217,10 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b
   $('#ef2').onsubmit=ev=>{ev.preventDefault();go(async()=>{await api('memberSave',{...Object.fromEntries(new FormData(ev.target)),target:m.nim});$('#dlg').close();toast('Anggota diperbarui');aAnggota()})}}
  else if(a==='mdel'){const m=ML.find(x=>x.nim===b.dataset.n);if(confirm('Hapus '+m.nama+'? Absensi, nilai, dan laporannya ikut terhapus permanen.')){await api('memberDelete',{target:m.nim});toast('Anggota dihapus');aAnggota()}}
  else if(a==='att'){const r=await api('attendanceManage',{id});dlgOpen(`<h3 class="sh" style="margin-top:0">Kelola absensi</h3><div class="lst">${r.filter(x=>x.nim!=='00000000').map(x=>`<div class="row" style="margin-bottom:8px"><span>${esc(x.nama)}</span><select data-att="${esc(id)}|${esc(x.nim)}" style="width:auto;margin:0">${['belum','hadir','izin','sakit'].map(s=>`<option ${s===x.status?'selected':''}>${s}</option>`).join('')}</select></div>`).join('')}</div><button class="btn" style="margin-top:8px" onclick="this.closest('dialog').close()">Tutup</button>`)}
+ else if(a==='pfdel'){if(confirm('Hapus foto profil?')){PF=await api('profileSave',{removeFoto:true});paintWho();toast('Foto dihapus');profil()}}
+ else if(a==='pcancel'){PF=await api('pinRequestCancel');toast('Permintaan dibatalkan');profil()}
+ else if(a==='pdec'){const ap=b.dataset.d==='approve';let note='';if(ap){if(!confirm('Setujui penggantian PIN? Anggota harus masuk lagi dengan PIN baru.'))return}else{note=prompt('Alasan penolakan (opsional)');if(note===null)return}
+  await api('pinRequestDecide',{id,decision:b.dataset.d,note});toast(ap?'PIN disetujui':'Permintaan ditolak');aPin();pinBadge()}
  else if(a==='st'){await api('setStatus',{id,status:b.dataset.s});aAcara()}
  else if(a==='evdel'){if(confirm('Hapus acara beserta absensinya?')){await api('deleteEvents',{ids:[id]});aAcara()}}
  else if(a==='dldel'){await api('deadlineDelete',{periode:b.dataset.p});aLaporan()}
@@ -191,7 +228,8 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b
   dlgOpen('<div style="text-align:center">'+q.createSvgTag({scalable:true,margin:2})+'<p class="note">Minta anggota scan QR ini</p></div><button class="btn" onclick="this.closest(\'dialog\').close()">Tutup</button>')}
 })});
 document.addEventListener('change',e=>{const t=e.target;go(async()=>{
- if(t.id==='yr'){AY=t.value;home()}
+ if(t.id==='pfile'){const f=t.files[0];t.value='';await pickFoto(f)}
+ else if(t.id==='yr'){AY=t.value;home()}
  else if(t.id==='ay'){AY=t.value;AM='';aDash()}
  else if(t.id==='am'){AM=t.value;aDash()}
  else if(t.id==='nm'&&t.value){AM2=t.value;aNilai()}
