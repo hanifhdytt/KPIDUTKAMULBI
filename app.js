@@ -31,7 +31,7 @@ function lineChart(labels,series){const w=320,h=170,L=28,R=8,T=10,B=22,iw=w-L-R,
  return s+`</svg><div class="lg">${series.map((se,k)=>`<span><i class="sw c${k}"></i>${esc(se.name)}</span>`).join('')}</div>`}
 const bars=rows=>rows.length?`<div class="bars">${rows.map(r=>`<div class="bar"><span class="bl">${esc(r.label)}</span><div class="bt"><div class="bf ${r.tg||''}" style="width:${Math.max(0,Math.min(100,r.val))}%"></div></div><b>${f1(r.val)}</b></div>`).join('')}</div>`:'<p class="mut">Belum ada data.</p>';
 const avgOf=a=>a.length?a.reduce((n,x)=>n+x,0)/a.length:null;
-const yearSel=(id,v)=>{const y=+bln().slice(0,4);return`<select id="${id}" style="width:auto;margin:0">${[y,y-1,y-2].map(x=>`<option ${String(x)===String(v)?'selected':''}>${x}</option>`).join('')}</select>`};
+const ORG_START=2024,yearSel=(id,v)=>{const y=+bln().slice(0,4),ys=[];for(let x=y;x>=ORG_START;x--)ys.push(x);return`<select id="${id}" style="width:auto;margin:0">${ys.map(x=>`<option ${String(x)===String(v)?'selected':''}>${x}</option>`).join('')}</select>`};
 
 function paintWho(){$('#who').innerHTML=U?`${PF&&PF.foto?`<img class="av" src="${esc(PF.foto)}" alt="">`:`<span class="av">${esc((U.nama||'?')[0])}</span>`}<div><b>${esc(U.nama)}</b><small>${esc(U.role)}</small></div><button class="btn ghost sm" data-a="out">Keluar</button>`:''}
 function render(){
