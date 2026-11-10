@@ -25,3 +25,9 @@
   font-variant-numeric: tabular-nums; user-select: all;
 }
 .rg-ok .btn + .btn { margin-top: var(--s2); }
+/* tambahkan di akhir tambahan.css */
+.rg-check.wait { background: var(--al); color: var(--a); font-size: 1.4rem; }
+.rg-check.no { background: #fee2e2; color: #b91c1c; }
+.rg-ok h2 { margin: 0 0 var(--s2); font-size: 1.3rem; }
+.rg-ok > p { margin: 0 0 var(--s4); }
+.rg-ok .btn { margin-top: var(--s2); }
