@@ -119,7 +119,7 @@ function admin(){
  if(!isA())return;
  V(PH('Admin','Dashboard KPI, penilaian, anggota, acara, dan laporan')+`<div class="seg">${ATABS().map(([k,n])=>`<button class="btn ${k===AT?'':'ghost'}" data-a="atab" data-t="${k}">${n}</button>`).join('')}</div><div id="av"></div>`);
  pinBadge();
- return({dash:aDash,nilai:aNilai,anggota:aAnggota,reg:aReg,acara:aAcara,laporan:aLaporan,pin:aPin,follow:aFollow}[AT]||aDash)()}
+ return({dash:aDash,nilai:aNilai,anggota:aAnggota,reg:aReg,acara:aAcara,laporan:aLaporan,pin:aPin,follow:aFollow}[AT]||aDash)()};
 const pinBadge=()=>{
  api('pinRequests').then(r=>{const b=document.querySelector('[data-t=pin]');if(b&&r.pending)b.textContent='Verifikasi PIN ('+r.pending+')'}).catch(()=>{});
  api('regRequests').then(r=>{const b=document.querySelector('[data-t=reg]');if(b&&r.pending)b.textContent='Anggota baru ('+r.pending+')'}).catch(()=>{})};
