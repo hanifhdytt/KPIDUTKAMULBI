@@ -114,14 +114,16 @@ async function laporan(){
  f.onsubmit=e=>{e.preventDefault();go(async()=>{await api('laporanSave',Object.fromEntries(new FormData(f)));toast('Laporan tersimpan');laporan()})}}
 
 /* ---- Admin ---- */
-const ATABS=()=>[['dash','Dashboard'],['nilai','Penilaian'],['anggota','Anggota'],['acara','Acara'],['laporan','Laporan'],['pin','Verifikasi PIN'],...(U.role==='superadmin'?[['follow','Tindak lanjut']]:[])];
+const ATABS=()=>[['dash','Dashboard'],['nilai','Penilaian'],['anggota','Anggota'],['acara','Acara'],['laporan','Laporan'],['pin','Verifikasi PIN'],['reg','Anggota baru'],...(U.role==='superadmin'?[['follow','Tindak lanjut']]:[])];
 function admin(){
  if(!isA())return;
  V(PH('Admin','Dashboard KPI, penilaian, anggota, acara, dan laporan')+`<div class="seg">${ATABS().map(([k,n])=>`<button class="btn ${k===AT?'':'ghost'}" data-a="atab" data-t="${k}">${n}</button>`).join('')}</div><div id="av"></div>`);
  pinBadge();
- return({dash:aDash,nilai:aNilai,anggota:aAnggota,acara:aAcara,laporan:aLaporan,pin:aPin,follow:aFollow}[AT]||aDash)()}
-const pinBadge=()=>api('pinRequests').then(r=>{const b=document.querySelector('[data-t=pin]');if(b&&r.pending)b.textContent='Verifikasi PIN ('+r.pending+')'}).catch(()=>{});
-
+ return({dash:aDash,nilai:aNilai,anggota:aAnggota,reg:aReg,acara:aAcara,laporan:aLaporan,pin:aPin,follow:aFollow}[AT]||aDash)()
+const pinBadge=()=>{
+ api('pinRequests').then(r=>{const b=document.querySelector('[data-t=pin]');if(b&&r.pending)b.textContent='Verifikasi PIN ('+r.pending+')'}).catch(()=>{});
+ api('regRequests').then(r=>{const b=document.querySelector('[data-t=reg]');if(b&&r.pending)b.textContent='Anggota baru ('+r.pending+')'}).catch(()=>{})};
+ 
 /* -- Dashboard: MOM/MOY per tingkat + grafik seluruh anggota -- */
 function awCard(jenis,periode,aw,t){const w=aw[t];let b;
  if(!w)b='<small>Belum ada skor di tingkat ini</small>';
@@ -182,6 +184,12 @@ async function aPin(){
  +tbl(['Anggota','Divisi','Diajukan','Status','Aksi'],d.rows.map(r=>[esc(r.nama)+`<small>${esc(r.nim)}${r.role!=='member'?' · '+esc(r.role):''}</small>`,esc(r.divisi||'-'),ft(r.created_at),`<span class="pill ${st[r.status][0]}">${st[r.status][1]}</span>`+(r.status==='rejected'&&r.note?`<small>${esc(r.note)}</small>`:''),
   r.canDecide?`<button class="btn sm" data-a="pdec" data-id="${r.id}" data-d="approve">Setujui</button> <button class="btn ghost sm" data-a="pdec" data-id="${r.id}" data-d="reject">Tolak</button>`:(r.status==='pending'?'<small>Perlu admin lain</small>':'-')]))}
 
+ async function aReg(){
+ const d=await api('regRequests'),st={pending:['open','Menunggu'],approved:['closed','Disetujui'],rejected:['','Ditolak']};
+ $('#av').innerHTML=`<p class="mut" style="margin-top:0">${d.pending} pendaftaran menunggu. Data baru masuk ke daftar anggota setelah kamu setujui; NIM dibuat otomatis saat itu.</p>`
+ +tbl(['Nama','Angkatan','Jabatan / divisi','Diajukan','Status','Aksi'],d.rows.map(r=>[esc(r.nama),esc(r.angkatan),esc(r.jabatan),ft(r.created_at),
+  `<span class="pill ${st[r.status][0]}">${st[r.status][1]}</span>`+(r.status==='approved'?`<small>NIM ${esc(r.nim)}</small>`:'')+(r.status==='rejected'&&r.note?`<small>${esc(r.note)}</small>`:''),
+  r.status==='pending'?`<button class="btn sm" data-a="rdec" data-id="${r.id}" data-d="approve">Setujui</button> <button class="btn ghost sm" data-a="rdec" data-id="${r.id}" data-d="reject">Tolak</button>`:'-']))}
 /* -- Acara -- */
 /* ---- Acara: daftar + halaman pengelolaan absensi di tab yang sama; QR tampil sebagai popup ---- */
 let AE=null,AD,FM=null;
@@ -250,6 +258,10 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b
  else if(a==='pcancel'){PF=await api('pinRequestCancel');toast('Permintaan dibatalkan');profil()}
  else if(a==='pdec'){const ap=b.dataset.d==='approve';let note='';if(ap){if(!confirm('Setujui penggantian PIN? Anggota harus masuk lagi dengan PIN baru.'))return}else{note=prompt('Alasan penolakan (opsional)');if(note===null)return}
   await api('pinRequestDecide',{id,decision:b.dataset.d,note});toast(ap?'PIN disetujui':'Permintaan ditolak');aPin();pinBadge()}
+  else if(a==='rdec'){const ap=b.dataset.d==='approve';let note='';
+ if(ap){if(!confirm('Setujui pendaftaran ini? Anggota akan dibuat dengan NIM otomatis.'))return}
+ else{note=prompt('Alasan penolakan (opsional)');if(note===null)return}
+ const r=await api('regDecide',{id,decision:b.dataset.d,note});toast(ap?'Disetujui. NIM: '+r.nim:'Pendaftaran ditolak');aReg();pinBadge()}
  else if(a==='st'){await api('setStatus',{id,status:b.dataset.s});aAcara()}
  else if(a==='evdel'){if(confirm('Hapus acara beserta absensinya?')){await api('deleteEvents',{ids:[id]});aAcara()}}
  else if(a==='dldel'){await api('deadlineDelete',{periode:b.dataset.p});aLaporan()}
