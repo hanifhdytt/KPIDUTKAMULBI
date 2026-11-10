@@ -1,0 +1,27 @@
+/* Tambahan v5.7.0: scan QR dari galeri + pendaftaran akun. Memakai token warna/spasi dari style.css. */
+
+/* -- scan -- */
+.sc-wrap { max-width: 460px; }
+.sc-or { display: flex; align-items: center; gap: var(--s3); margin: var(--s4) 0; font-size: .8rem; color: var(--m); }
+.sc-or::before, .sc-or::after { content: ""; flex: 1; height: 1px; background: var(--l); }
+.sc-pick { cursor: pointer; display: flex; margin: 0; }
+
+/* -- pendaftaran (di dalam .lg-box halaman login) -- */
+.lg-box .lg-reg { margin-top: var(--s2) !important; }
+.lg-box .lnk { font-size: inherit; }
+.rg-hint { margin: calc(-1 * var(--s2)) 0 var(--s4); font-size: .82rem; color: var(--m); }
+.rg-ok { text-align: center; }
+.rg-check {
+  display: grid; place-items: center;
+  width: 56px; height: 56px; margin: 0 auto var(--s3);
+  border-radius: 50%; background: var(--okl); color: var(--ok);
+  font-size: 1.6rem; font-weight: 700;
+}
+.rg-nim {
+  margin: var(--s4) 0; padding: 14px;
+  border: 1px dashed var(--p); border-radius: var(--r);
+  background: var(--pl); color: var(--p);
+  font-size: 1.9rem; font-weight: 700; letter-spacing: .12em;
+  font-variant-numeric: tabular-nums; user-select: all;
+}
+.rg-ok .btn + .btn { margin-top: var(--s2); }
