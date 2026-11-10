@@ -54,7 +54,6 @@
       + '<label>Jabatan / divisi<input name="jabatan" placeholder="Contoh: Staf Humas" maxlength="60" required></label>'
       + '<label>PIN (4-20 karakter)<input name="pin" type="password" minlength="4" maxlength="20" autocomplete="new-password" required></label>'
       + '<label>Ulangi PIN<input name="again" type="password" minlength="4" maxlength="20" autocomplete="new-password" required></label>'
-      + (info.kode ? '<label>Kode pendaftaran<input name="kode" autocomplete="off" required></label>' : '')
       + '<button class="btn">Daftar</button></form>'
       + '<p class="lg-help">Sudah punya akun? <button type="button" class="lnk" data-login>Masuk</button></p>';
     const f = $('#rg'), hint = () => {
@@ -67,7 +66,7 @@
       go(async () => {
         if (f.pin.value !== f.again.value) throw Error('Ulangi PIN tidak sama');
         const btn = f.querySelector('.btn'); btn.disabled = true;
-        try { const d = await api('register', { nama: f.nama.value, angkatan: f.angkatan.value, jabatan: f.jabatan.value, pin: f.pin.value, kode: f.kode ? f.kode.value : '' }); done(d, f.pin.value); }
+        try { const d = await api('register', { nama: f.nama.value, angkatan: f.angkatan.value, jabatan: f.jabatan.value, pin: f.pin.value }); }
         finally { btn.disabled = false; }
       });
     };
