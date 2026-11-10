@@ -47,7 +47,7 @@
   async function openRegister() {
     const b = box(); if (!b) return;
     b.innerHTML = '<p class="mut">Memuat…</p>';
-    let info = { org: '', tahun: new Date().getFullYear() };
+    let info = { org: '', tahun: new Date().getFullYear(), min: 2024, max: new Date().getFullYear() };
     try { info = await api('registerInfo'); } catch (e) {}
     b.innerHTML = '<h2>Daftar akun baru</h2><p class="mut">Pendaftaranmu akan diperiksa admin. NIM dibuat otomatis setelah disetujui.</p>'
       + '<form id="rg" autocomplete="off">'
@@ -61,7 +61,7 @@
       + '<p class="lg-help">Sudah punya akun? <button type="button" class="lnk" data-login>Masuk</button></p>';
     const f = $('#rg'), hint = () => {
       const a = f.angkatan.value.replace(/\D/g, '');
-      $('#rgh').textContent = a.length === 4 ? 'NIM-mu akan berbentuk ' + info.org + a.slice(2) + 'xxxx (diberikan setelah disetujui)' : 'NIM = tahun organisasi + angkatan + nomor urut.';
+      $('#rgh').textContent = a.length === 4 ? 'NIM-mu akan berbentuk ' + info.org + a.slice(2) + 'xxxx (diberikan setelah disetujui)' : 'NIM = tahun organisasi + angkatan + nomor urut. Angkatan ' + info.min + '–' + info.max + '.';
     };
     f.angkatan.oninput = hint; hint();
     f.onsubmit = e => {
