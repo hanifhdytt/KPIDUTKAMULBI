@@ -1,4 +1,4 @@
-const API='https://kpi-duta-api.dutakpi.workers.dev';
+const APIS=['https://kpi-duta-api.pages.dev','https://kpi-duta-api.dutakpi.workers.dev'];let API=APIS[0];
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const bln=()=>new Date(Date.now()+7*36e5).toISOString().slice(0,7);
 let T=localStorage.getItem('t')||'',U=JSON.parse(localStorage.getItem('u')||'null'),RL,PF=null,AT='dash',AY='',AM='',AM2='',AF='all',ML=[],stream,timer;
@@ -6,7 +6,9 @@ const isA=()=>U&&/admin/.test(U.role);
 const toast=m=>{const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toast.i);toast.i=setTimeout(()=>t.hidden=true,3500)};
 const go=async f=>{try{await f()}catch(e){toast(e.message||'Terjadi kesalahan')}};
 async function api(a,p={}){
- let r;try{r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+T},body:JSON.stringify({action:a,...p})})}catch{throw Error('Tidak ada koneksi internet')}
+ const req={method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+T},body:JSON.stringify({action:a,...p})};
+ let r;for(const u of [API,...APIS.filter(x=>x!==API)]){try{const x=await fetch(u,req);if(x.status!==404&&x.status!==522&&x.status!==530){r=x;API=u;break}}catch{}}
+ if(!r)throw Error(navigator.onLine===false?'Tidak ada koneksi internet':'Koneksi ke API gagal (domain .workers.dev diblokir operator seluler)');
  const j=await r.json().catch(()=>({error:'Respon server tidak valid'}));
  if(r.status===401&&a!=='login'){out();throw Error(j.error)}
  if(!j.ok)throw Error(j.error);return j.data}
